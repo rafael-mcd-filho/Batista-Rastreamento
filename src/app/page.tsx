@@ -18,7 +18,7 @@ import {
   Search,
   WalletCards
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type InvoiceGroup = "overdue" | "open" | "paid" | "other";
 type Filter = "all" | InvoiceGroup;
@@ -57,6 +57,16 @@ type Invoice = {
 };
 
 type SearchResult = {
+  origem?: {
+    tipo: "helena";
+    userId: string;
+    contato: {
+      id: string;
+      nome: string | null;
+      telefone: string | null;
+      email: string | null;
+    };
+  };
   pessoa?: {
     id: string;
     nome: string | null;
@@ -505,6 +515,8 @@ function SortHeader({
 }
 
 export default function Home() {
+  const publicLookupStarted = useRef(false);
+  const [publicUserId, setPublicUserId] = useState<string | null | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<MainTab>("client");
   const [documento, setDocumento] = useState("");
   const [dataIni, setDataIni] = useState(monthStartDate);
@@ -531,6 +543,37 @@ export default function Home() {
   const [error, setError] = useState("");
   const [actionFeedback, setActionFeedback] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const userId = new URLSearchParams(window.location.search).get("userid")?.trim();
+    setPublicUserId(userId || null);
+  }, []);
+
+  useEffect(() => {
+    if (!publicUserId || publicLookupStarted.current) {
+      return;
+    }
+
+    publicLookupStarted.current = true;
+    setActiveTab("client");
+
+    void runSearch(async () => {
+      const response = await fetch(
+        `/api/contato-faturas?userid=${encodeURIComponent(publicUserId)}`,
+        {
+          method: "GET",
+          headers: { accept: "application/json" }
+        }
+      );
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.message || "Falha ao consultar contato e faturas.");
+      }
+
+      setResult(payload);
+    });
+  }, [publicUserId]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(settingsStorageKey);
@@ -897,6 +940,19 @@ export default function Home() {
       : `${selectedStatuses.length} selecionados`;
   const showCustomerColumn = activeTab === "invoices";
 
+  if (publicUserId === undefined) {
+    return (
+      <main className="appShell">
+        <section className="workspace">
+          <div className="emptyState">
+            <ReceiptText size={42} aria-hidden="true" />
+            <strong>Carregando consulta</strong>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="appShell">
       {isLoading ? (
@@ -997,27 +1053,29 @@ export default function Home() {
             <span className="eyebrow">Batista Rastreamento</span>
             <h1>Painel financeiro</h1>
           </div>
-          <div className="mainTabs" aria-label="Tipo de consulta">
-            <button
-              type="button"
-              className={activeTab === "client" ? "active" : ""}
-              onClick={() => changeMainTab("client")}
-            >
-              <Search size={17} aria-hidden="true" />
-              Por cliente
-            </button>
-            <button
-              type="button"
-              className={activeTab === "invoices" ? "active" : ""}
-              onClick={() => changeMainTab("invoices")}
-            >
-              <CalendarDays size={17} aria-hidden="true" />
-              Buscar faturas
-            </button>
-          </div>
+          {!publicUserId ? (
+            <div className="mainTabs" aria-label="Tipo de consulta">
+              <button
+                type="button"
+                className={activeTab === "client" ? "active" : ""}
+                onClick={() => changeMainTab("client")}
+              >
+                <Search size={17} aria-hidden="true" />
+                Por cliente
+              </button>
+              <button
+                type="button"
+                className={activeTab === "invoices" ? "active" : ""}
+                onClick={() => changeMainTab("invoices")}
+              >
+                <CalendarDays size={17} aria-hidden="true" />
+                Buscar faturas
+              </button>
+            </div>
+          ) : null}
         </header>
 
-        {activeTab === "client" ? (
+        {!publicUserId && activeTab === "client" ? (
           <form className="queryPanel clientQuery" onSubmit={onClientSubmit}>
             <div className="fieldGroup">
               <label htmlFor="documento">CPF ou CNPJ</label>
@@ -1035,7 +1093,7 @@ export default function Home() {
               {isLoading ? "Consultando" : "Consultar"}
             </button>
           </form>
-        ) : (
+        ) : !publicUserId ? (
           <form className="queryPanel invoiceQuery" onSubmit={onInvoiceSearchSubmit}>
             <div className="fieldGroup">
               <label htmlFor="rangePreset">Intervalo</label>
@@ -1166,7 +1224,7 @@ export default function Home() {
               </button>
             </div>
           </form>
-        )}
+        ) : null}
 
         {error ? (
           <div className="notice errorNotice" role="alert">
@@ -1184,6 +1242,27 @@ export default function Home() {
 
         {result ? (
           <>
+            {result.origem ? (
+              <section className="customerBand searchBand">
+                <div>
+                  <span>Contato Helena</span>
+                  <strong>{result.origem.contato.nome || "Sem nome no contato"}</strong>
+                </div>
+                <div>
+                  <span>Telefone</span>
+                  <strong>{result.origem.contato.telefone || "-"}</strong>
+                </div>
+                <div>
+                  <span>User ID</span>
+                  <strong>{result.origem.userId}</strong>
+                </div>
+                <div>
+                  <span>Email</span>
+                  <strong>{result.origem.contato.email || "-"}</strong>
+                </div>
+              </section>
+            ) : null}
+
             {result.pessoa ? (
               <section className="customerBand">
                 <div>
@@ -1282,39 +1361,41 @@ export default function Home() {
                   <span>Faturas</span>
                   <strong>{countLabel(filteredInvoices.length)}</strong>
                 </div>
-                <div className="invoiceTools">
-                  <label className="invoiceSearch">
-                    <Search size={17} aria-hidden="true" />
-                    <span>Buscar cliente, parcela ou ID</span>
-                    <input
-                      value={nameSearch}
-                      onChange={(event) => handleNameSearchChange(event.target.value)}
-                      placeholder="Buscar cliente, parcela ou ID"
-                    />
-                  </label>
-                  <button
-                    className="exportButton"
-                    type="button"
-                    onClick={exportCurrentCsv}
-                    disabled={sortedInvoices.length === 0}
-                  >
-                    <Download size={17} aria-hidden="true" />
-                    CSV
-                  </button>
-                  <div className="filterTabs" aria-label="Filtros de status">
-                    {filterOptions.map((option) => (
-                      <button
-                        key={option.key}
-                        type="button"
-                        className={filter === option.key ? "active" : ""}
-                        onClick={() => handleFilterChange(option.key)}
-                      >
-                        {option.label}
-                        <span>{option.count}</span>
-                      </button>
-                    ))}
+                {!publicUserId ? (
+                  <div className="invoiceTools">
+                    <label className="invoiceSearch">
+                      <Search size={17} aria-hidden="true" />
+                      <span>Buscar cliente, parcela ou ID</span>
+                      <input
+                        value={nameSearch}
+                        onChange={(event) => handleNameSearchChange(event.target.value)}
+                        placeholder="Buscar cliente, parcela ou ID"
+                      />
+                    </label>
+                    <button
+                      className="exportButton"
+                      type="button"
+                      onClick={exportCurrentCsv}
+                      disabled={sortedInvoices.length === 0}
+                    >
+                      <Download size={17} aria-hidden="true" />
+                      CSV
+                    </button>
+                    <div className="filterTabs" aria-label="Filtros de status">
+                      {filterOptions.map((option) => (
+                        <button
+                          key={option.key}
+                          type="button"
+                          className={filter === option.key ? "active" : ""}
+                          onClick={() => handleFilterChange(option.key)}
+                        >
+                          {option.label}
+                          <span>{option.count}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : null}
               </div>
 
               <div className="invoiceContent">

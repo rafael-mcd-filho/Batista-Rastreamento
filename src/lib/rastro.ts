@@ -386,3 +386,43 @@ export function uniqueInvoices(invoices: NormalizedInvoice[]) {
 
   return unique;
 }
+
+export async function findPessoaByCpfCnpj(cpfCnpj: string) {
+  const formatted = formatCpfCnpj(cpfCnpj);
+  const digits = cpfCnpjDigits(cpfCnpj);
+  const attempts: Array<Record<string, string>> = [
+    { cpf_cnpj: formatted, st: "ativo", page: "0", limit: "10" },
+    { cpf_cnpj: formatted, status: "2", page: "0", limit: "10" },
+    { cpf_cnpj: digits, st: "ativo", page: "0", limit: "10" }
+  ];
+
+  for (const params of attempts) {
+    const payload = await apiGet("list-pessoas", params);
+    const pessoas = dataArray(payload);
+
+    if (pessoas.length > 0) {
+      return pessoas[0];
+    }
+  }
+
+  return null;
+}
+
+export async function financeiroPorPessoaId(pessoaId: string, limit = "100") {
+  return apiGet("get-financeiro-v2", {
+    tipo: "1",
+    pessoa_id: pessoaId,
+    page: "0",
+    limit
+  });
+}
+
+export function pessoaFinanceiraPayload(pessoa: RawRecord, cpfCnpj: string) {
+  return {
+    id: asString(pessoa.id) ?? "",
+    nome: asString(pessoa.nome_razao_social),
+    cpfCnpj: asString(pessoa.cpf_cnpj) ?? formatCpfCnpj(cpfCnpj),
+    telefone: asString(pessoa.fone),
+    email: asString(pessoa.email)
+  };
+}

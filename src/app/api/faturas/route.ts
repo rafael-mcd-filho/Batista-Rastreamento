@@ -1,38 +1,18 @@
 import { NextResponse } from "next/server";
 import {
-  apiGet,
   asString,
   cpfCnpjDigits,
   dataArray,
-  formatCpfCnpj,
+  financeiroPorPessoaId,
+  findPessoaByCpfCnpj,
   normalizeConta,
+  pessoaFinanceiraPayload,
   RastroApiError,
   sortInvoices,
   summaryFromContas
 } from "../../../lib/rastro";
 
 export const dynamic = "force-dynamic";
-
-async function findPessoa(cpfCnpj: string) {
-  const formatted = formatCpfCnpj(cpfCnpj);
-  const digits = cpfCnpjDigits(cpfCnpj);
-  const attempts: Array<Record<string, string>> = [
-    { cpf_cnpj: formatted, st: "ativo", page: "0", limit: "10" },
-    { cpf_cnpj: formatted, status: "2", page: "0", limit: "10" },
-    { cpf_cnpj: digits, st: "ativo", page: "0", limit: "10" }
-  ];
-
-  for (const params of attempts) {
-    const payload = await apiGet("list-pessoas", params);
-    const pessoas = dataArray(payload);
-
-    if (pessoas.length > 0) {
-      return { pessoa: pessoas[0] };
-    }
-  }
-
-  return { pessoa: null };
-}
 
 export async function POST(request: Request) {
   try {
@@ -47,16 +27,16 @@ export async function POST(request: Request) {
       );
     }
 
-    const pessoaResult = await findPessoa(cpfCnpj);
+    const pessoa = await findPessoaByCpfCnpj(cpfCnpj);
 
-    if (!pessoaResult.pessoa) {
+    if (!pessoa) {
       return NextResponse.json(
         { message: "Nenhuma pessoa ativa encontrada para esse documento." },
         { status: 404 }
       );
     }
 
-    const pessoaId = asString(pessoaResult.pessoa.id);
+    const pessoaId = asString(pessoa.id);
 
     if (!pessoaId) {
       return NextResponse.json(
@@ -65,23 +45,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const financeiro = await apiGet("get-financeiro-v2", {
-      tipo: "1",
-      pessoa_id: pessoaId,
-      page: "0",
-      limit: "100"
-    });
+    const financeiro = await financeiroPorPessoaId(pessoaId);
     const contas = dataArray(financeiro);
     const faturas = sortInvoices(contas.map(normalizeConta));
 
     return NextResponse.json({
-      pessoa: {
-        id: pessoaId,
-        nome: asString(pessoaResult.pessoa.nome_razao_social),
-        cpfCnpj: asString(pessoaResult.pessoa.cpf_cnpj) ?? formatCpfCnpj(cpfCnpj),
-        telefone: asString(pessoaResult.pessoa.fone),
-        email: asString(pessoaResult.pessoa.email)
-      },
+      pessoa: pessoaFinanceiraPayload(pessoa, cpfCnpj),
       resumo: summaryFromContas(contas),
       faturas
     });
