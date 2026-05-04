@@ -36,7 +36,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -119,12 +120,166 @@ button:disabled {
   animation: spin 780ms linear infinite;
 }
 
+.actionToast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 42;
+  max-width: min(360px, calc(100vw - 36px));
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  background: #f0fdf4;
+  color: #166534;
+  box-shadow: 0 14px 34px rgba(16, 24, 40, 0.18);
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  animation: modalIn 160ms ease-out both;
+}
+
+.detailOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 43;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(15, 23, 42, 0.2);
+  backdrop-filter: blur(6px);
+}
+
+.detailModal {
+  width: min(680px, 100%);
+  max-height: min(760px, calc(100vh - 44px));
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 22px 70px rgba(16, 24, 40, 0.24);
+  padding: 18px;
+}
+
+.detailHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.detailHeader span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.detailHeader strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 1.2rem;
+}
+
+.detailHeader button {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.detailGrid div {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.detailGrid dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.detailGrid dd {
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.detailActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.detailActions button {
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  font-weight: 800;
+}
+
+.detailActions button:hover,
+.detailHeader button:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
 .topBar {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(360px, 520px);
   gap: 24px;
   align-items: end;
   margin-bottom: 22px;
+}
+
+.mainTabs {
+  min-height: 44px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mainTabs button {
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  font-weight: 800;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.mainTabs button.active {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+  color: #1d4ed8;
 }
 
 .eyebrow,
@@ -160,7 +315,46 @@ h1 {
   gap: 10px;
 }
 
-.searchControl input {
+.queryPanel {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  align-items: end;
+  margin-bottom: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 8px 26px rgba(16, 24, 40, 0.05);
+  padding: 14px;
+}
+
+.clientQuery {
+  grid-template-columns: minmax(260px, 1fr) auto;
+}
+
+.invoiceQuery {
+  grid-template-columns:
+    minmax(170px, 0.9fr) minmax(280px, 1.25fr) minmax(190px, 1fr) auto;
+}
+
+.fieldGroup {
+  position: relative;
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.fieldGroup label {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.searchControl input,
+.queryPanel input,
+.queryPanel select,
+.statusSelectButton,
+.dateRangeButton {
   min-width: 0;
   height: 46px;
   border: 1px solid var(--border);
@@ -172,12 +366,202 @@ h1 {
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
 
-.searchControl input:focus {
+.searchControl input:focus,
+.queryPanel input:focus,
+.queryPanel select:focus,
+.statusSelectButton:focus,
+.dateRangeButton:focus {
   border-color: var(--blue);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
-.searchControl button {
+.queryPanel select {
+  appearance: none;
+}
+
+.statusSelectButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text);
+  padding: 0 12px 0 14px;
+  text-align: left;
+}
+
+.dateRangeButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text);
+  padding: 0 14px;
+  text-align: left;
+}
+
+.rangeField {
+  position: relative;
+}
+
+.calendarPopover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 18;
+  width: 336px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 12px;
+}
+
+.calendarHeader {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: 36px 1fr 36px;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.calendarHeader strong {
+  color: var(--text);
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.calendarHeader button,
+.calendarFooter button {
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  display: inline-grid;
+  place-items: center;
+  font-weight: 800;
+}
+
+.calendarHeader button:hover,
+.calendarFooter button:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.calendarWeekdays,
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendarWeekdays span {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-align: center;
+}
+
+.calendarGrid {
+  margin-top: 6px;
+}
+
+.calendarGrid button {
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.calendarGrid button:hover {
+  background: var(--blue-soft);
+  color: #1d4ed8;
+}
+
+.calendarGrid button.outside {
+  color: #98a2b3;
+}
+
+.calendarGrid button.inRange {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.calendarGrid button.selected,
+.calendarGrid button.draftStart {
+  background: var(--blue);
+  color: white;
+}
+
+.calendarFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.calendarFooter span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.calendarFooter button {
+  min-width: 86px;
+  background: var(--blue);
+  border-color: var(--blue);
+  color: white;
+}
+
+.calendarFooter button:hover {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: white;
+}
+
+.statusDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  left: 0;
+  z-index: 15;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 8px;
+}
+
+.statusDropdown label {
+  min-height: 36px;
+  border-radius: 6px;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-transform: none;
+}
+
+.statusDropdown label:hover {
+  background: #f8fafc;
+}
+
+.statusDropdown input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue);
+}
+
+.searchControl button,
+.queryPanel > button {
   height: 46px;
   border: 0;
   border-radius: 8px;
@@ -189,6 +573,39 @@ h1 {
   gap: 8px;
   padding: 0 16px;
   font-weight: 800;
+}
+
+.queryActions {
+  display: flex;
+  gap: 8px;
+}
+
+.queryActions button {
+  height: 46px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 13px;
+  font-weight: 800;
+}
+
+.queryActions button[type="submit"] {
+  border: 0;
+  background: var(--blue);
+  color: white;
+}
+
+.secondaryButton {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.secondaryButton:hover {
+  border-color: var(--blue);
+  color: var(--blue);
 }
 
 .emptyState {
@@ -223,6 +640,13 @@ h1 {
   border-color: #fecaca;
   background: #fff7f7;
   color: #991b1b;
+  margin-bottom: 18px;
+}
+
+.limitNotice {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #92400e;
   margin-bottom: 18px;
 }
 
@@ -269,6 +693,13 @@ h1 {
   gap: 14px;
   padding: 16px;
   box-shadow: 0 8px 26px rgba(16, 24, 40, 0.05);
+  color: var(--text);
+  text-align: left;
+}
+
+.summaryCard:hover {
+  border-color: #bfd0ea;
+  box-shadow: 0 12px 34px rgba(16, 24, 40, 0.08);
 }
 
 .summaryIcon {
@@ -339,6 +770,69 @@ h1 {
   font-size: 1.1rem;
 }
 
+.invoiceTools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.invoiceSearch {
+  width: min(280px, 100%);
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  display: grid;
+  grid-template-columns: 17px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+}
+
+.invoiceSearch span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.invoiceSearch input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.invoiceSearch:focus-within {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.exportButton {
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  font-weight: 800;
+}
+
+.exportButton:hover:not(:disabled) {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
 .filterTabs {
   min-height: 40px;
   display: flex;
@@ -394,9 +888,66 @@ h1 {
   animation: contentIn 180ms ease both;
 }
 
+.paginationBar {
+  min-height: 58px;
+  border-bottom: 1px solid var(--border);
+  background: #fbfcfe;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.paginationBar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.paginationBar select {
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0 28px 0 10px;
+  font-weight: 800;
+}
+
+.paginationActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.paginationActions button {
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0 12px;
+  font-weight: 800;
+}
+
+.paginationActions button:hover:not(:disabled) {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.paginationActions strong {
+  min-width: 58px;
+  color: var(--text);
+  text-align: center;
+}
+
 table {
   width: 100%;
-  min-width: 940px;
+  min-width: 1080px;
   border-collapse: collapse;
 }
 
@@ -413,6 +964,37 @@ th {
   color: var(--muted);
   font-size: 0.76rem;
   text-transform: uppercase;
+}
+
+.sortButton {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  text-transform: inherit;
+}
+
+.sortButton svg {
+  opacity: 0.45;
+  transition: transform 140ms ease;
+}
+
+.sortButton.active {
+  color: #1d4ed8;
+}
+
+.sortButton.active svg {
+  opacity: 1;
+}
+
+.sortButton svg.desc {
+  transform: rotate(180deg);
 }
 
 td {
@@ -435,6 +1017,18 @@ tbody tr:last-child td {
   font-size: 0.84rem;
   font-weight: 800;
   white-space: nowrap;
+}
+
+.statusStack {
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+}
+
+.statusStack > span:not(.statusBadge) {
+  color: var(--red);
+  font-size: 0.76rem;
+  font-weight: 800;
 }
 
 .statusOverdue {
@@ -539,7 +1133,20 @@ tbody tr:last-child td {
     grid-template-columns: 1fr 1fr;
   }
 
-  .searchPanel {
+  .mainTabs {
+    justify-content: flex-start;
+  }
+
+  .clientQuery,
+  .invoiceQuery {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .queryPanel > button {
+    grid-column: 1 / -1;
+  }
+
+  .queryActions {
     grid-column: 1 / -1;
   }
 }
@@ -563,6 +1170,34 @@ tbody tr:last-child td {
     grid-template-columns: 1fr;
   }
 
+  .mainTabs,
+  .clientQuery,
+  .invoiceQuery {
+    grid-template-columns: 1fr;
+  }
+
+  .mainTabs {
+    display: grid;
+  }
+
+  .queryPanel > button {
+    grid-column: auto;
+  }
+
+  .queryActions {
+    grid-column: auto;
+  }
+
+  .queryActions,
+  .detailActions {
+    flex-direction: column;
+  }
+
+  .queryActions button,
+  .detailActions button {
+    width: 100%;
+  }
+
   .sectionHeader {
     align-items: stretch;
     flex-direction: column;
@@ -570,6 +1205,26 @@ tbody tr:last-child td {
 
   .filterTabs {
     justify-content: flex-start;
+  }
+
+  .invoiceTools,
+  .invoiceSearch {
+    width: 100%;
+  }
+
+  .paginationBar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .paginationBar label,
+  .paginationActions {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .paginationActions button {
+    flex: 1;
   }
 
   .tableWrap {
@@ -628,6 +1283,14 @@ tbody tr:last-child td {
 @media (max-width: 440px) {
   .appShell {
     padding: 12px;
+  }
+
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .calendarPopover {
+    width: calc(100vw - 24px);
   }
 
   dl {
