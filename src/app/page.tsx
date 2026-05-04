@@ -54,7 +54,6 @@ type SearchResult = {
     countOutras: number;
   };
   faturas: Invoice[];
-  raw: unknown;
 };
 
 const currency = new Intl.NumberFormat("pt-BR", {
@@ -199,8 +198,6 @@ export default function Home() {
   const [result, setResult] = useState<SearchResult | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isTabAnimating, setIsTabAnimating] = useState(false);
-  const [showRaw, setShowRaw] = useState(false);
 
   const filteredInvoices = useMemo(() => {
     if (!result) {
@@ -220,7 +217,6 @@ export default function Home() {
     setIsLoading(true);
     setError("");
     setResult(null);
-    setShowRaw(false);
 
     try {
       const response = await fetch("/api/faturas", {
@@ -250,9 +246,7 @@ export default function Home() {
       return;
     }
 
-    setIsTabAnimating(true);
     setFilter(nextFilter);
-    window.setTimeout(() => setIsTabAnimating(false), 260);
   }
 
   const filterOptions = result
@@ -268,11 +262,13 @@ export default function Home() {
   return (
     <main className="appShell">
       {isLoading ? (
-        <div className="loadingToast" role="status" aria-live="polite">
-          <span className="loadingSpinner" aria-hidden="true" />
-          <strong>Puxando dados</strong>
-          <span>Consultando pessoa, faturas e status financeiro...</span>
-          <i aria-hidden="true" />
+        <div className="loadingOverlay" role="status" aria-live="polite">
+          <div className="loadingModal">
+            <span className="loadingSpinner" aria-hidden="true" />
+            <strong>Puxando dados</strong>
+            <span>Consultando pessoa, faturas e status financeiro...</span>
+            <i aria-hidden="true" />
+          </div>
         </div>
       ) : null}
 
@@ -388,7 +384,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className={`invoiceContent ${isTabAnimating ? "isSwitching" : ""}`}>
+              <div className="invoiceContent">
                 <div className="tableWrap">
                   <table>
                     <thead>
@@ -467,13 +463,6 @@ export default function Home() {
               </div>
             </section>
 
-            <section className="rawSection">
-              <button type="button" onClick={() => setShowRaw((value) => !value)}>
-                <FileJson size={17} aria-hidden="true" />
-                Dados brutos
-              </button>
-              {showRaw ? <pre>{JSON.stringify(result.raw, null, 2)}</pre> : null}
-            </section>
           </>
         ) : null}
       </section>

@@ -281,18 +281,16 @@ async function findPessoa(cpfCnpj: string) {
     { cpf_cnpj: digits, st: "ativo", page: "0", limit: "10" }
   ];
 
-  let lastPayload: unknown = null;
-
   for (const params of attempts) {
-    lastPayload = await apiGet("list-pessoas", params);
-    const pessoas = dataArray(lastPayload);
+    const payload = await apiGet("list-pessoas", params);
+    const pessoas = dataArray(payload);
 
     if (pessoas.length > 0) {
-      return { pessoa: pessoas[0], raw: lastPayload, parametros: params };
+      return { pessoa: pessoas[0] };
     }
   }
 
-  return { pessoa: null, raw: lastPayload, parametros: attempts[attempts.length - 1] };
+  return { pessoa: null };
 }
 
 export async function POST(request: Request) {
@@ -313,8 +311,7 @@ export async function POST(request: Request) {
     if (!pessoaResult.pessoa) {
       return NextResponse.json(
         {
-          message: "Nenhuma pessoa ativa encontrada para esse documento.",
-          raw: { pessoas: pessoaResult.raw }
+          message: "Nenhuma pessoa ativa encontrada para esse documento."
         },
         { status: 404 }
       );
@@ -325,8 +322,7 @@ export async function POST(request: Request) {
     if (!pessoaId) {
       return NextResponse.json(
         {
-          message: "A pessoa encontrada não possui ID no retorno da API.",
-          raw: { pessoas: pessoaResult.raw }
+          message: "A pessoa encontrada não possui ID no retorno da API."
         },
         { status: 422 }
       );
@@ -352,11 +348,7 @@ export async function POST(request: Request) {
         email: asString(pessoaResult.pessoa.email)
       },
       resumo: summaryFromContas(contas),
-      faturas,
-      raw: {
-        pessoas: pessoaResult.raw,
-        financeiro
-      }
+      faturas
     });
   } catch (error) {
     if (error instanceof RastroApiError) {

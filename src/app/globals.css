@@ -59,39 +59,47 @@ button:disabled {
   margin: 0 auto;
 }
 
-.loadingToast {
+.loadingOverlay {
   position: fixed;
-  top: 18px;
-  left: 50%;
-  z-index: 20;
-  width: min(430px, calc(100vw - 28px));
-  min-height: 58px;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(246, 247, 251, 0.54);
+  backdrop-filter: blur(8px);
+  animation: overlayIn 160ms ease-out both;
+}
+
+.loadingModal {
+  position: relative;
+  width: min(420px, 100%);
+  min-height: 168px;
   overflow: hidden;
   border: 1px solid #bfdbfe;
   border-radius: 8px;
   background: var(--surface);
   box-shadow: 0 18px 45px rgba(16, 24, 40, 0.18);
-  display: grid;
-  grid-template-columns: 34px auto;
-  column-gap: 10px;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  padding: 12px 14px 14px;
-  transform: translateX(-50%);
-  animation: toastIn 220ms ease-out both;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 24px 30px;
+  text-align: center;
+  animation: modalIn 180ms ease-out both;
 }
 
-.loadingToast strong {
-  align-self: end;
-  font-size: 0.93rem;
+.loadingModal strong {
+  font-size: 1rem;
 }
 
-.loadingToast span:last-of-type {
-  align-self: start;
+.loadingModal span:last-of-type {
   color: var(--muted);
-  font-size: 0.82rem;
+  font-size: 0.9rem;
 }
 
-.loadingToast i {
+.loadingModal i {
   position: absolute;
   right: 0;
   bottom: 0;
@@ -103,9 +111,8 @@ button:disabled {
 }
 
 .loadingSpinner {
-  grid-row: 1 / span 2;
-  width: 28px;
-  height: 28px;
+  width: 38px;
+  height: 38px;
   border: 3px solid #bfdbfe;
   border-top-color: var(--blue);
   border-radius: 999px;
@@ -170,8 +177,7 @@ h1 {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
-.searchControl button,
-.rawSection button {
+.searchControl button {
   height: 46px;
   border: 0;
   border-radius: 8px;
@@ -385,11 +391,7 @@ h1 {
 }
 
 .invoiceContent {
-  animation: contentIn 220ms ease both;
-}
-
-.invoiceContent.isSwitching {
-  animation: contentSwitch 260ms ease both;
+  animation: contentIn 180ms ease both;
 }
 
 table {
@@ -482,41 +484,31 @@ tbody tr:last-child td {
   display: none;
 }
 
-.rawSection {
-  margin-top: 18px;
-}
-
-.rawSection button {
-  background: #334155;
-}
-
-.rawSection pre {
-  max-height: 460px;
-  overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: #111827;
-  color: #e5e7eb;
-  padding: 16px;
-  font-size: 0.8rem;
-  line-height: 1.55;
-}
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-@keyframes toastIn {
+@keyframes overlayIn {
   from {
     opacity: 0;
-    transform: translate(-50%, -10px);
   }
 
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
@@ -533,24 +525,10 @@ tbody tr:last-child td {
 @keyframes contentIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes contentSwitch {
-  from {
-    opacity: 0.35;
-    transform: translateY(8px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 
