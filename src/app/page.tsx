@@ -16,13 +16,14 @@ import {
   RefreshCcw,
   ReceiptText,
   Search,
+  Send,
   WalletCards
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 type InvoiceGroup = "overdue" | "open" | "paid" | "other";
 type Filter = "all" | InvoiceGroup;
-type MainTab = "client" | "invoices";
+type MainTab = "client" | "invoices" | "disparos";
 type PageSize = 25 | 50 | 100;
 type SortKey = "cliente" | "vencimento" | "pagamento" | "valor" | "status";
 type SortDirection = "asc" | "desc";
@@ -544,6 +545,14 @@ export default function Home() {
   const [actionFeedback, setActionFeedback] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const selectAllDispRef = useRef<HTMLInputElement>(null);
+  const [dispResult, setDispResult] = useState<SearchResult | null>(null);
+  const [dispError, setDispError] = useState("");
+  const [dispIsLoading, setDispIsLoading] = useState(false);
+  const [dispSelectedIds, setDispSelectedIds] = useState<Set<string>>(new Set());
+  const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+  const [dispTemplateName, setDispTemplateName] = useState("");
+
   useEffect(() => {
     const userId = new URLSearchParams(window.location.search).get("userid")?.trim();
     setPublicUserId(userId || null);
@@ -631,6 +640,14 @@ export default function Home() {
       })
     );
   }, [dataIni, dataFim, rangePreset, selectedStatuses]);
+
+  useEffect(() => {
+    const total = dispResult?.faturas?.length ?? 0;
+    if (selectAllDispRef.current) {
+      selectAllDispRef.current.indeterminate =
+        dispSelectedIds.size > 0 && dispSelectedIds.size < total;
+    }
+  }, [dispSelectedIds.size, dispResult?.faturas?.length]);
 
   const filteredInvoices = useMemo(() => {
     if (!result) {
@@ -768,6 +785,67 @@ export default function Home() {
     });
   }
 
+  function dispInvoiceKey(invoice: Invoice, index: number) {
+    return invoice.id ?? `idx-${index}`;
+  }
+
+  function toggleDispSelection(key: string) {
+    setDispSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }
+
+  function toggleAllDispSelection() {
+    if (dispSelectedIds.size === dispInvoices.length && dispInvoices.length > 0) {
+      setDispSelectedIds(new Set());
+    } else {
+      setDispSelectedIds(new Set(dispInvoices.map((inv, i) => dispInvoiceKey(inv, i))));
+    }
+  }
+
+  async function onDispSearchSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setDispSelectedIds(new Set());
+    setIsStatusMenuOpen(false);
+
+    const loadingStart = Date.now();
+    setDispIsLoading(true);
+    setDispError("");
+    setDispResult(null);
+
+    try {
+      const response = await fetch("/api/cobrancas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          dataIni,
+          dataFim,
+          periodo: "1",
+          statuses: selectedStatuses
+        })
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.message || "Falha ao buscar cobranças.");
+      }
+
+      setDispResult(payload);
+    } catch (caught) {
+      setDispError(caught instanceof Error ? caught.message : "Falha ao consultar a API.");
+    } finally {
+      const elapsed = Date.now() - loadingStart;
+      await wait(Math.max(0, 4000 - elapsed));
+      setDispIsLoading(false);
+    }
+  }
+
   function changeMainTab(nextTab: MainTab) {
     if (nextTab === activeTab) {
       return;
@@ -781,6 +859,7 @@ export default function Home() {
     setCurrentPage(1);
     setIsStatusMenuOpen(false);
     setIsCalendarOpen(false);
+    setIsDispatchModalOpen(false);
   }
 
   function toggleStatus(status: InvoiceGroup) {
@@ -939,6 +1018,7 @@ export default function Home() {
       ? "Todos os status"
       : `${selectedStatuses.length} selecionados`;
   const showCustomerColumn = activeTab === "invoices";
+  const dispInvoices = dispResult?.faturas ?? [];
 
   if (publicUserId === undefined) {
     return (
@@ -955,12 +1035,16 @@ export default function Home() {
 
   return (
     <main className="appShell">
-      {isLoading ? (
+      {isLoading || dispIsLoading ? (
         <div className="loadingOverlay" role="status" aria-live="polite">
           <div className="loadingModal">
             <span className="loadingSpinner" aria-hidden="true" />
             <strong>Puxando dados</strong>
-            <span>Consultando faturas e status financeiro...</span>
+            <span>
+              {dispIsLoading
+                ? "Buscando contatos para disparo..."
+                : "Consultando faturas e status financeiro..."}
+            </span>
             <i aria-hidden="true" />
           </div>
         </div>
@@ -1071,6 +1155,14 @@ export default function Home() {
                 <CalendarDays size={17} aria-hidden="true" />
                 Buscar faturas
               </button>
+              <button
+                type="button"
+                className={activeTab === "disparos" ? "active" : ""}
+                onClick={() => changeMainTab("disparos")}
+              >
+                <Send size={17} aria-hidden="true" />
+                Disparos
+              </button>
             </div>
           ) : null}
         </header>
@@ -1093,7 +1185,7 @@ export default function Home() {
               {isLoading ? "Consultando" : "Consultar"}
             </button>
           </form>
-        ) : !publicUserId ? (
+        ) : !publicUserId && activeTab === "invoices" ? (
           <form className="queryPanel invoiceQuery" onSubmit={onInvoiceSearchSubmit}>
             <div className="fieldGroup">
               <label htmlFor="rangePreset">Intervalo</label>
@@ -1224,23 +1316,178 @@ export default function Home() {
               </button>
             </div>
           </form>
+        ) : !publicUserId && activeTab === "disparos" ? (
+          <form className="queryPanel invoiceQuery" onSubmit={onDispSearchSubmit}>
+            <div className="fieldGroup">
+              <label htmlFor="dispRangePreset">Intervalo</label>
+              <select
+                id="dispRangePreset"
+                value={rangePreset}
+                onChange={(event) => handleRangePresetChange(event.target.value)}
+              >
+                {rangePresetOptions.map((option) => (
+                  <option key={option.key} value={option.key}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="fieldGroup rangeField">
+              <label>Datas</label>
+              <button
+                className="dateRangeButton"
+                type="button"
+                onClick={() => {
+                  setRangePreset("custom");
+                  setCalendarMonth(parseInputDate(dataIni));
+                  setIsCalendarOpen((value) => !value);
+                }}
+                aria-expanded={isCalendarOpen}
+              >
+                <CalendarDays size={17} aria-hidden="true" />
+                {rangeLabel(dataIni, dataFim)}
+              </button>
+              {isCalendarOpen ? (
+                <div className="calendarPopover">
+                  <div className="calendarHeader">
+                    <button
+                      type="button"
+                      onClick={() => changeCalendarMonth(-1)}
+                      aria-label="Mês anterior"
+                    >
+                      <ChevronLeft size={18} aria-hidden="true" />
+                    </button>
+                    <strong>{monthFormatter.format(calendarMonth)}</strong>
+                    <button
+                      type="button"
+                      onClick={() => changeCalendarMonth(1)}
+                      aria-label="Próximo mês"
+                    >
+                      <ChevronRight size={18} aria-hidden="true" />
+                    </button>
+                  </div>
+                  <div className="calendarWeekdays">
+                    {weekDays.map((day) => (
+                      <span key={day}>{day}</span>
+                    ))}
+                  </div>
+                  <div className="calendarGrid">
+                    {calendarDays(calendarMonth).map((date) => {
+                      const value = inputDate(date);
+                      const isOutside = date.getMonth() !== calendarMonth.getMonth();
+                      const isStart = value === dataIni;
+                      const isEnd = value === dataFim;
+                      const isInRange = value > dataIni && value < dataFim;
+                      const isDraftStart = value === rangeDraftStart;
+
+                      return (
+                        <button
+                          key={value}
+                          className={[
+                            isOutside ? "outside" : "",
+                            isStart || isEnd ? "selected" : "",
+                            isInRange ? "inRange" : "",
+                            isDraftStart ? "draftStart" : ""
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                          type="button"
+                          onClick={() => handleCalendarDateClick(date)}
+                        >
+                          {date.getDate()}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="calendarFooter">
+                    <span>{rangeLabel(dataIni, dataFim)}</span>
+                    <button type="button" onClick={() => setIsCalendarOpen(false)}>
+                      Aplicar
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+              <input id="dispDataIni" type="hidden" value={dataIni} readOnly />
+              <input id="dispDataFim" type="hidden" value={dataFim} readOnly />
+            </div>
+            <div className="fieldGroup statusField">
+              <label>Status</label>
+              <button
+                className="statusSelectButton"
+                type="button"
+                onClick={() => setIsStatusMenuOpen((value) => !value)}
+                aria-expanded={isStatusMenuOpen}
+              >
+                {selectedStatusLabel}
+                <ChevronDown size={16} aria-hidden="true" />
+              </button>
+              {isStatusMenuOpen ? (
+                <div className="statusDropdown">
+                  {statusChoices.map((status) => (
+                    <label key={status.key}>
+                      <input
+                        type="checkbox"
+                        checked={selectedStatuses.includes(status.key)}
+                        onChange={() => toggleStatus(status.key)}
+                      />
+                      <span>{status.label}</span>
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            <div className="queryActions">
+              <button
+                className="secondaryButton"
+                type="button"
+                onClick={() => {
+                  clearInvoiceFilters();
+                  setDispResult(null);
+                  setDispError("");
+                  setDispSelectedIds(new Set());
+                }}
+              >
+                <RefreshCcw size={17} aria-hidden="true" />
+                Limpar
+              </button>
+              <button type="submit" disabled={dispIsLoading}>
+                <Search size={18} aria-hidden="true" />
+                {dispIsLoading ? "Buscando" : "Buscar"}
+              </button>
+            </div>
+          </form>
         ) : null}
 
-        {error ? (
+        {error && activeTab !== "disparos" ? (
           <div className="notice errorNotice" role="alert">
             <AlertTriangle size={18} aria-hidden="true" />
             <span>{error}</span>
           </div>
         ) : null}
 
-        {!result && !error && !isLoading ? (
+        {dispError && activeTab === "disparos" ? (
+          <div className="notice errorNotice" role="alert">
+            <AlertTriangle size={18} aria-hidden="true" />
+            <span>{dispError}</span>
+          </div>
+        ) : null}
+
+        {!result && !error && !isLoading && activeTab !== "disparos" ? (
           <div className="emptyState">
             <ReceiptText size={42} aria-hidden="true" />
             <strong>Nenhuma consulta carregada</strong>
           </div>
         ) : null}
 
-        {result ? (
+        {!dispResult && !dispError && !dispIsLoading && activeTab === "disparos" ? (
+          <div className="emptyState">
+            <Send size={42} aria-hidden="true" />
+            <strong>Nenhum resultado carregado</strong>
+            <span>Defina o período e status, depois clique em Buscar.</span>
+          </div>
+        ) : null}
+
+        {result && activeTab !== "disparos" ? (
           <>
             {result.origem ? (
               <section className="customerBand searchBand">
@@ -1582,7 +1829,162 @@ export default function Home() {
             </section>
           </>
         ) : null}
+
+        {dispResult && activeTab === "disparos" ? (
+          <section className="invoiceSection">
+            <div className="sectionHeader">
+              <div>
+                <span>Contatos para disparo</span>
+                <strong>
+                  {dispInvoices.length}{" "}
+                  {dispInvoices.length === 1 ? "fatura" : "faturas"}
+                </strong>
+              </div>
+              <div className="invoiceTools">
+                {dispSelectedIds.size > 0 ? (
+                  <span className="dispSelectionCount">
+                    {dispSelectedIds.size}{" "}
+                    {dispSelectedIds.size === 1 ? "selecionada" : "selecionadas"}
+                  </span>
+                ) : null}
+                <button
+                  className="dispatchButton"
+                  type="button"
+                  disabled={dispSelectedIds.size === 0}
+                  onClick={() => setIsDispatchModalOpen(true)}
+                >
+                  <Send size={17} aria-hidden="true" />
+                  Enviar template
+                </button>
+              </div>
+            </div>
+            <div className="tableWrap">
+              <table className="dispTable">
+                <thead>
+                  <tr>
+                    <th className="checkCell">
+                      <input
+                        type="checkbox"
+                        ref={selectAllDispRef}
+                        checked={
+                          dispSelectedIds.size === dispInvoices.length &&
+                          dispInvoices.length > 0
+                        }
+                        onChange={toggleAllDispSelection}
+                        aria-label="Selecionar todas"
+                      />
+                    </th>
+                    <th style={{ textAlign: "left" }}>Cliente</th>
+                    <th>Status</th>
+                    <th>Vencimento</th>
+                    <th>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dispInvoices.map((invoice, index) => {
+                    const key = dispInvoiceKey(invoice, index);
+                    const isSelected = dispSelectedIds.has(key);
+                    return (
+                      <tr
+                        key={key}
+                        className={isSelected ? "selectedRow" : ""}
+                        onClick={() => toggleDispSelection(key)}
+                      >
+                        <td
+                          className="checkCell"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleDispSelection(key)}
+                            aria-label={`Selecionar ${invoice.clienteNome ?? invoice.clienteId ?? "fatura"}`}
+                          />
+                        </td>
+                        <td style={{ textAlign: "left" }}>
+                          {invoice.clienteNome || invoice.clienteId || "-"}
+                        </td>
+                        <td>
+                          <InvoiceStatus invoice={invoice} />
+                        </td>
+                        <td>{invoice.vencimento || "-"}</td>
+                        <td>{money(invoice.valor, invoice.valorOriginal)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {dispInvoices.length === 0 ? (
+              <div className="notice" style={{ margin: "16px" }}>
+                <ReceiptText size={18} aria-hidden="true" />
+                <span>Nenhuma fatura encontrada com esses filtros.</span>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
       </section>
+
+      {isDispatchModalOpen ? (
+        <div
+          className="detailOverlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Disparo de template WABA"
+        >
+          <div className="detailModal">
+            <div className="detailHeader">
+              <div>
+                <span>Disparo WABA</span>
+                <strong>Enviar template</strong>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDispatchModalOpen(false)}
+                aria-label="Fechar"
+              >
+                ×
+              </button>
+            </div>
+            <div className="notice" style={{ marginBottom: 20 }}>
+              <Send size={18} aria-hidden="true" />
+              <span>
+                <strong>{dispSelectedIds.size}</strong>{" "}
+                {dispSelectedIds.size === 1 ? "fatura selecionada" : "faturas selecionadas"} para
+                disparo.
+              </span>
+            </div>
+            <div className="fieldGroup" style={{ marginBottom: 20 }}>
+              <label htmlFor="dispTemplateName">Nome do template</label>
+              <input
+                id="dispTemplateName"
+                value={dispTemplateName}
+                onChange={(event) => setDispTemplateName(event.target.value)}
+                placeholder="ex: cobranca_vencida"
+                autoComplete="off"
+              />
+            </div>
+            <div className="detailActions">
+              <button type="button" onClick={() => setIsDispatchModalOpen(false)}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={!dispTemplateName.trim()}
+                onClick={() => {
+                  showActionFeedback(
+                    `Em breve: disparo do template "${dispTemplateName}" para ${dispSelectedIds.size} contato(s).`
+                  );
+                  setIsDispatchModalOpen(false);
+                }}
+              >
+                <Send size={17} aria-hidden="true" />
+                Confirmar disparo
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
