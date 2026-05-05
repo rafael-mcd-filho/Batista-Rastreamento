@@ -42,6 +42,7 @@ type Invoice = {
   descricao: string | null;
   clienteId: string | null;
   clienteNome: string | null;
+  clienteTelefone: string | null;
   valor: number | null;
   valorOriginal: string | null;
   valorPago: number | null;
@@ -1076,6 +1077,12 @@ export default function Home() {
                 <dt>Cliente</dt>
                 <dd>{selectedInvoice.clienteNome || selectedInvoice.clienteId || "-"}</dd>
               </div>
+              {selectedInvoice.clienteTelefone ? (
+                <div>
+                  <dt>Telefone</dt>
+                  <dd>{selectedInvoice.clienteTelefone}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt>Vencimento</dt>
                 <dd>{selectedInvoice.vencimento || "-"}</dd>
