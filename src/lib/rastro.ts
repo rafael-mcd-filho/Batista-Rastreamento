@@ -7,6 +7,7 @@ export type NormalizedInvoice = {
   descricao: string | null;
   clienteId: string | null;
   clienteNome: string | null;
+  clienteTelefone: string | null;
   valor: number | null;
   valorOriginal: string | null;
   valorPago: number | null;
@@ -168,6 +169,12 @@ export function cpfCnpjDigits(value: string) {
   return value.replace(/\D/g, "");
 }
 
+export function phoneDigits(value: string | null): string | null {
+  if (!value) return null;
+  const digits = value.replace(/\D/g, "");
+  return digits || null;
+}
+
 export function formatCpfCnpj(value: string) {
   const digits = cpfCnpjDigits(value);
 
@@ -260,6 +267,7 @@ export function normalizeConta(conta: RawRecord): NormalizedInvoice {
     descricao: asString(conta.conta_descricao ?? conta.descricao),
     clienteId: asString(conta.cliente_id ?? conta.pessoa_id),
     clienteNome: asString(conta.nome_razao_social ?? conta.nome_cliente),
+    clienteTelefone: phoneDigits(asString(conta.fone ?? conta.telefone ?? conta.fone_celular)),
     valor: asNumber(conta.valor),
     valorOriginal: asString(conta.valor),
     valorPago: asNumber(conta.valor_pago),
@@ -415,6 +423,12 @@ export async function financeiroPorPessoaId(pessoaId: string, limit = "100") {
     page: "0",
     limit
   });
+}
+
+export async function fetchPessoaById(id: string): Promise<RawRecord | null> {
+  const payload = await apiGet("list-pessoas", { id, page: "0", limit: "1" });
+  const pessoas = dataArray(payload);
+  return pessoas[0] ?? null;
 }
 
 export function pessoaFinanceiraPayload(pessoa: RawRecord, cpfCnpj: string) {

@@ -1,8 +1,11 @@
 import {
   apiGet,
+  asString,
   dataArray,
+  fetchPessoaById,
   GROUP_STATUS_CODES,
   normalizeConta,
+  phoneDigits,
   sortInvoices,
   toBrDate,
   uniqueInvoices
@@ -181,6 +184,39 @@ function withDispatchType(
   }));
 }
 
+async function enrichWithPhones(
+  invoices: DispatchInvoice[]
+): Promise<DispatchInvoice[]> {
+  const missing = invoices.filter(
+    (inv) => !inv.clienteTelefone && inv.clienteId
+  );
+  if (missing.length === 0) return invoices;
+
+  const uniqueIds = [...new Set(missing.map((inv) => inv.clienteId!))];
+  const phoneMap = new Map<string, string>();
+
+  await Promise.all(
+    uniqueIds.map(async (id) => {
+      const pessoa = await fetchPessoaById(id);
+      if (!pessoa) return;
+      const tel = phoneDigits(
+        asString(pessoa.fone ?? pessoa.telefone ?? pessoa.fone_celular)
+      );
+      if (tel) phoneMap.set(id, tel);
+    })
+  );
+
+  if (phoneMap.size === 0) return invoices;
+
+  return invoices.map((inv) => {
+    if (!inv.clienteTelefone && inv.clienteId) {
+      const tel = phoneMap.get(inv.clienteId);
+      return tel ? { ...inv, clienteTelefone: tel } : inv;
+    }
+    return inv;
+  });
+}
+
 export async function buildDailyInvoiceWebhookPayload(
   date = new Date()
 ): Promise<DailyInvoiceWebhookPayload> {
@@ -195,23 +231,30 @@ export async function buildDailyInvoiceWebhookPayload(
     fetchInvoicesByDateAndGroups(cincoDiasAtras, overdueGroups)
   ]);
 
-  const vencemHoje = withDispatchType(
-    dueTodayResult.invoices.filter(
-      (invoice) =>
-        invoice.vencimentoSort === hoje &&
-        (invoice.grupo === "open" || invoice.grupo === "overdue")
+  const [vencemHoje, vencidasCincoDias] = await Promise.all([
+    enrichWithPhones(
+      withDispatchType(
+        dueTodayResult.invoices.filter(
+          (invoice) =>
+            invoice.vencimentoSort === hoje &&
+            (invoice.grupo === "open" || invoice.grupo === "overdue")
+        ),
+        "vence_hoje",
+        0
+      )
     ),
-    "vence_hoje",
-    0
-  );
-  const vencidasCincoDias = withDispatchType(
-    overdueFiveDaysResult.invoices.filter(
-      (invoice) =>
-        invoice.vencimentoSort === cincoDiasAtras && invoice.grupo === "overdue"
-    ),
-    "vencida_5_dias",
-    5
-  );
+    enrichWithPhones(
+      withDispatchType(
+        overdueFiveDaysResult.invoices.filter(
+          (invoice) =>
+            invoice.vencimentoSort === cincoDiasAtras &&
+            invoice.grupo === "overdue"
+        ),
+        "vencida_5_dias",
+        5
+      )
+    )
+  ]);
   const faturas = [...vencemHoje, ...vencidasCincoDias];
   const limiteAtingido =
     dueTodayResult.limitReached || overdueFiveDaysResult.limitReached;
