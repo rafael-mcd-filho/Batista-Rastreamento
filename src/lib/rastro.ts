@@ -171,7 +171,8 @@ export function cpfCnpjDigits(value: string) {
 
 export function phoneDigits(value: string | null): string | null {
   if (!value) return null;
-  const digits = value.replace(/\D/g, "");
+  const first = value.split(/[/,;\n]|\s{2,}/)[0].trim();
+  const digits = first.replace(/\D/g, "");
   return digits || null;
 }
 
