@@ -267,7 +267,7 @@ export function normalizeConta(conta: RawRecord): NormalizedInvoice {
     descricao: asString(conta.conta_descricao ?? conta.descricao),
     clienteId: asString(conta.cliente_id ?? conta.pessoa_id),
     clienteNome: asString(conta.nome_razao_social ?? conta.nome_cliente),
-    clienteTelefone: phoneDigits(asString(conta.fone ?? conta.telefone ?? conta.fone_celular)),
+    clienteTelefone: phoneDigits(asString(conta.fone_cliente ?? conta.fone ?? conta.telefone)),
     valor: asNumber(conta.valor),
     valorOriginal: asString(conta.valor),
     valorPago: asNumber(conta.valor_pago),
