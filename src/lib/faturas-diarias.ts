@@ -197,12 +197,16 @@ async function enrichWithPhones(
 
   await Promise.all(
     uniqueIds.map(async (id) => {
-      const pessoa = await fetchPessoaById(id);
-      if (!pessoa) return;
-      const tel = phoneDigits(
-        asString(pessoa.fone ?? pessoa.telefone ?? pessoa.fone_celular)
-      );
-      if (tel) phoneMap.set(id, tel);
+      try {
+        const pessoa = await fetchPessoaById(id);
+        if (!pessoa) return;
+        const tel = phoneDigits(
+          asString(pessoa.fone ?? pessoa.telefone ?? pessoa.fone_celular)
+        );
+        if (tel) phoneMap.set(id, tel);
+      } catch {
+        // falha ao buscar telefone não deve impedir o envio das faturas
+      }
     })
   );
 
