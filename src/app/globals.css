@@ -1310,7 +1310,7 @@ tbody tr:last-child td {
 }
 
 .dispTable {
-  min-width: 680px;
+  min-width: 940px;
 }
 
 .checkCell {
@@ -1376,9 +1376,170 @@ tbody tr:last-child td {
   background: #1d4ed8;
 }
 
+.dispatchModal {
+  width: min(900px, 100%);
+}
+
+.dispatchError {
+  margin-bottom: 16px;
+}
+
+.dispatchProgress {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.dispatchProgressHeader,
+.dispatchProgressMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dispatchProgressHeader span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.dispatchProgressHeader strong {
+  font-weight: 900;
+}
+
+.dispatchProgressBar {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e4e7ec;
+  margin: 10px 0;
+}
+
+.dispatchProgressBar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--blue);
+  transition: width 220ms ease;
+}
+
+.dispatchProgressMeta {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.dispatchPreviewGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.templatePreview,
+.dispatchParams {
+  min-width: 0;
+}
+
+.templatePreview > span,
+.dispatchParams > span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.waPreview {
+  margin-top: 8px;
+  border: 1px solid #ddd6ce;
+  border-radius: 8px;
+  background-color: #eee7de;
+  background-image:
+    linear-gradient(30deg, rgba(255, 255, 255, 0.36) 12%, transparent 12.5%, transparent 87%, rgba(255, 255, 255, 0.36) 87.5%),
+    linear-gradient(150deg, rgba(255, 255, 255, 0.36) 12%, transparent 12.5%, transparent 87%, rgba(255, 255, 255, 0.36) 87.5%);
+  background-size: 28px 28px;
+  padding: 16px;
+}
+
+.waBubble {
+  border-radius: 8px;
+  background: white;
+  color: #475467;
+  box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08);
+  padding: 13px 16px;
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.waBubble p {
+  margin: 0 0 14px;
+}
+
+.waBubble p:last-child {
+  margin-bottom: 0;
+}
+
+.templateVar {
+  color: #ff0000;
+  font-weight: 900;
+}
+
+.waButton {
+  width: 100%;
+  min-height: 40px;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: white;
+  color: #60a5fa;
+  cursor: default;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 900;
+}
+
+.dispatchParams dl {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin: 8px 0 0;
+}
+
+.dispatchParams div {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfcfe;
+  padding: 10px 12px;
+}
+
+.dispatchParams dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.dispatchParams dd {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 980px) {
   .dispQuery {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .dispatchPreviewGrid {
+    grid-template-columns: 1fr;
   }
 }
 

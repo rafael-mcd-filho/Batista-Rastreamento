@@ -20,6 +20,7 @@ import {
   WalletCards
 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { boletoParameterFromLink } from "../lib/boleto";
 
 type InvoiceGroup = "overdue" | "open" | "paid" | "other";
 type Filter = "all" | InvoiceGroup;
@@ -96,6 +97,30 @@ type SearchResult = {
   faturas: Invoice[];
 };
 
+type DispatchApiResponse = {
+  message?: string;
+  enviados?: number;
+  falhas?: number;
+  resultados?: {
+    falhas?: Array<{
+      ref: string;
+      cliente: string | null;
+      message: string;
+    }>;
+  };
+};
+
+type DispatchQueueProgress = {
+  total: number;
+  completed: number;
+  sent: number;
+  failed: number;
+  currentIndex: number;
+  currentName: string;
+  waiting: boolean;
+  finished: boolean;
+};
+
 const currency = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL"
@@ -119,6 +144,7 @@ const statusChoices: Array<{ key: InvoiceGroup; label: string }> = [
 ];
 
 const pageSizeOptions: PageSize[] = [25, 50, 100];
+const dispatchIntervalMs = 1000;
 const rangePresetOptions: Array<{ key: RangePreset; label: string }> = [
   { key: "today", label: "Hoje" },
   { key: "yesterday", label: "Ontem" },
@@ -299,6 +325,68 @@ function overdueLabel(days: number | null) {
   }
 
   return days === 1 ? "1 dia em atraso" : `${days} dias em atraso`;
+}
+
+function normalizeDispatchPhone(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const digits = value.replace(/\D/g, "");
+
+  if (/^55\d{10,11}$/.test(digits)) {
+    return digits;
+  }
+
+  if (/^\d{10,11}$/.test(digits)) {
+    return `55${digits}`;
+  }
+
+  return null;
+}
+
+function dispatchMissingFields(invoice: Invoice) {
+  const missing: string[] = [];
+
+  if (!(invoice.clienteNome || invoice.clienteId)) {
+    missing.push("cliente");
+  }
+
+  if (!invoice.vencimento) {
+    missing.push("vencimento");
+  }
+
+  if (!boletoParameterFromLink(invoice.linkBoleto)) {
+    missing.push("boleto");
+  }
+
+  if (!normalizeDispatchPhone(invoice.clienteTelefone)) {
+    missing.push("telefone");
+  }
+
+  return missing;
+}
+
+function dispatchInvoicePayload(invoice: Invoice) {
+  return {
+    id: invoice.id,
+    parcela: invoice.parcela,
+    clienteId: invoice.clienteId,
+    clienteNome: invoice.clienteNome,
+    clienteTelefone: invoice.clienteTelefone,
+    vencimento: invoice.vencimento,
+    linkBoleto: invoice.linkBoleto
+  };
+}
+
+function dispatchInvoiceName(invoice: Invoice) {
+  return (
+    invoice.clienteNome ||
+    invoice.clienteId ||
+    invoice.parcela ||
+    invoice.id ||
+    "Contato"
+  );
 }
 
 function csvCell(value: string | number | null | undefined) {
@@ -552,7 +640,10 @@ export default function Home() {
   const [dispIsLoading, setDispIsLoading] = useState(false);
   const [dispSelectedIds, setDispSelectedIds] = useState<Set<string>>(new Set());
   const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
-  const [dispTemplateName, setDispTemplateName] = useState("");
+  const [dispIsSending, setDispIsSending] = useState(false);
+  const [dispDispatchError, setDispDispatchError] = useState("");
+  const [dispatchProgress, setDispatchProgress] =
+    useState<DispatchQueueProgress | null>(null);
 
   useEffect(() => {
     const userId = new URLSearchParams(window.location.search).get("userid")?.trim();
@@ -813,6 +904,8 @@ export default function Home() {
   async function onDispSearchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setDispSelectedIds(new Set());
+    setDispDispatchError("");
+    setDispatchProgress(null);
     setIsStatusMenuOpen(false);
 
     const loadingStart = Date.now();
@@ -848,6 +941,11 @@ export default function Home() {
   }
 
   function changeMainTab(nextTab: MainTab) {
+    if (dispIsSending) {
+      showActionFeedback("Aguarde o término da fila de disparos.");
+      return;
+    }
+
     if (nextTab === activeTab) {
       return;
     }
@@ -861,6 +959,8 @@ export default function Home() {
     setIsStatusMenuOpen(false);
     setIsCalendarOpen(false);
     setIsDispatchModalOpen(false);
+    setDispDispatchError("");
+    setDispatchProgress(null);
   }
 
   function toggleStatus(status: InvoiceGroup) {
@@ -960,6 +1060,151 @@ export default function Home() {
     }
   }
 
+  function closeDispatchModal() {
+    if (dispIsSending) {
+      return;
+    }
+
+    setIsDispatchModalOpen(false);
+    setDispDispatchError("");
+    if (dispatchProgress?.finished) {
+      setDispSelectedIds(new Set());
+    }
+    setDispatchProgress(null);
+  }
+
+  async function handleConfirmDispatch() {
+    const queuedInvoices = [...dispatchReadyInvoices];
+
+    if (queuedInvoices.length === 0) {
+      setDispDispatchError(
+        dispatchInvalidCount > 0
+          ? "As faturas selecionadas estão com dados incompletos para disparo."
+          : "Selecione ao menos uma fatura para disparo."
+      );
+      return;
+    }
+
+    setDispIsSending(true);
+    setDispDispatchError("");
+    setDispatchProgress({
+      total: queuedInvoices.length,
+      completed: 0,
+      sent: 0,
+      failed: 0,
+      currentIndex: 0,
+      currentName: "",
+      waiting: false,
+      finished: false
+    });
+
+    const failures: string[] = [];
+    let sent = 0;
+    let failed = 0;
+
+    try {
+      for (const [index, invoice] of queuedInvoices.entries()) {
+        const currentName = dispatchInvoiceName(invoice);
+        const startedAt = Date.now();
+
+        setDispatchProgress((current) =>
+          current
+            ? {
+                ...current,
+                currentIndex: index + 1,
+                currentName,
+                waiting: false
+              }
+            : current
+        );
+
+        try {
+          const response = await fetch("/api/disparos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              invoices: [dispatchInvoicePayload(invoice)]
+            })
+          });
+          const payload = (await response.json()) as DispatchApiResponse;
+          const requestSent = payload.enviados ?? 0;
+          const requestFailed = payload.falhas ?? 0;
+          const firstFailure = payload.resultados?.falhas?.[0]?.message;
+
+          if (!response.ok || requestSent === 0 || requestFailed > 0) {
+            throw new Error(
+              payload.message || firstFailure || "Falha ao enviar template."
+            );
+          }
+
+          sent += 1;
+        } catch (caught) {
+          failed += 1;
+          failures.push(
+            `${currentName}: ${
+              caught instanceof Error ? caught.message : "Falha ao enviar template."
+            }`
+          );
+        }
+
+        setDispatchProgress((current) =>
+          current
+            ? {
+                ...current,
+                completed: index + 1,
+                sent,
+                failed
+              }
+            : current
+        );
+
+        if (index < queuedInvoices.length - 1) {
+          const delay = Math.max(0, dispatchIntervalMs - (Date.now() - startedAt));
+          setDispatchProgress((current) =>
+            current ? { ...current, waiting: true } : current
+          );
+          await wait(delay);
+        }
+      }
+
+      setDispatchProgress((current) =>
+        current
+          ? {
+              ...current,
+              currentName: "",
+              waiting: false,
+              finished: true
+            }
+          : current
+      );
+
+      if (failures.length > 0 || dispatchInvalidCount > 0) {
+        const skipped =
+          dispatchInvalidCount > 0
+            ? `${dispatchInvalidCount} com dados incompletos não foram enviados.`
+            : "";
+        setDispDispatchError(
+          [...failures.slice(0, 4), skipped].filter(Boolean).join(" ")
+        );
+        showActionFeedback(
+          `${sent} enviado(s), ${failed + dispatchInvalidCount} não enviado(s).`
+        );
+        return;
+      }
+
+      showActionFeedback(`${sent} template(s) enviado(s).`);
+    } catch (caught) {
+      setDispDispatchError(
+        caught instanceof Error ? caught.message : "Falha ao enviar disparos."
+      );
+      setDispatchProgress((current) =>
+        current ? { ...current, waiting: false, finished: true } : current
+      );
+    } finally {
+      setDispIsSending(false);
+    }
+  }
+
   function handleRangePresetChange(value: string) {
     const nextPreset = value as RangePreset;
     setRangePreset(nextPreset);
@@ -1020,6 +1265,51 @@ export default function Home() {
       : `${selectedStatuses.length} selecionados`;
   const showCustomerColumn = activeTab === "invoices";
   const dispInvoices = dispResult?.faturas ?? [];
+  const dispSelectedInvoices = useMemo(
+    () =>
+      dispInvoices.filter((invoice, index) =>
+        dispSelectedIds.has(dispInvoiceKey(invoice, index))
+      ),
+    [dispInvoices, dispSelectedIds]
+  );
+  const dispatchPreviewInvoice = dispSelectedInvoices[0] ?? null;
+  const dispatchPreviewCliente =
+    dispatchPreviewInvoice?.clienteNome ||
+    dispatchPreviewInvoice?.clienteId ||
+    "[Cliente]";
+  const dispatchPreviewAtraso =
+    dispatchPreviewInvoice?.vencimento || "[atraso]";
+  const dispatchPreviewBoleto =
+    boletoParameterFromLink(dispatchPreviewInvoice?.linkBoleto) || "-";
+  const dispatchPreviewTo =
+    normalizeDispatchPhone(dispatchPreviewInvoice?.clienteTelefone ?? null) || "-";
+  const dispatchInvalidCount = useMemo(
+    () =>
+      dispSelectedInvoices.filter(
+        (invoice) => dispatchMissingFields(invoice).length > 0
+      ).length,
+    [dispSelectedInvoices]
+  );
+  const dispatchReadyInvoices = useMemo(
+    () =>
+      dispSelectedInvoices.filter(
+        (invoice) => dispatchMissingFields(invoice).length === 0
+      ),
+    [dispSelectedInvoices]
+  );
+  const dispatchValidCount = dispatchReadyInvoices.length;
+  const dispatchProgressPercent = dispatchProgress
+    ? Math.round(
+        (dispatchProgress.completed / Math.max(1, dispatchProgress.total)) * 100
+      )
+    : 0;
+  const dispatchProgressStatus = dispatchProgress?.finished
+    ? "Fila finalizada"
+    : dispatchProgress?.waiting
+      ? "Aguardando 1 segundo para o próximo envio"
+      : dispatchProgress?.currentName
+        ? `Enviando para ${dispatchProgress.currentName}`
+        : "Pronto para iniciar";
 
   if (publicUserId === undefined) {
     return (
@@ -1451,6 +1741,8 @@ export default function Home() {
                   clearInvoiceFilters();
                   setDispResult(null);
                   setDispError("");
+                  setDispDispatchError("");
+                  setDispatchProgress(null);
                   setDispSelectedIds(new Set());
                 }}
               >
@@ -1857,8 +2149,12 @@ export default function Home() {
                 <button
                   className="dispatchButton"
                   type="button"
-                  disabled={dispSelectedIds.size === 0}
-                  onClick={() => setIsDispatchModalOpen(true)}
+                  disabled={dispSelectedIds.size === 0 || dispIsSending}
+                  onClick={() => {
+                    setDispDispatchError("");
+                    setDispatchProgress(null);
+                    setIsDispatchModalOpen(true);
+                  }}
                 >
                   <Send size={17} aria-hidden="true" />
                   Enviar template
@@ -1882,9 +2178,11 @@ export default function Home() {
                       />
                     </th>
                     <th style={{ textAlign: "left" }}>Cliente</th>
+                    <th>Telefone</th>
                     <th>Status</th>
                     <th>Vencimento</th>
                     <th>Valor</th>
+                    <th>Boleto</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1911,11 +2209,15 @@ export default function Home() {
                         <td style={{ textAlign: "left" }}>
                           {invoice.clienteNome || invoice.clienteId || "-"}
                         </td>
+                        <td>{normalizeDispatchPhone(invoice.clienteTelefone) || "-"}</td>
                         <td>
                           <InvoiceStatus invoice={invoice} />
                         </td>
                         <td>{invoice.vencimento || "-"}</td>
                         <td>{money(invoice.valor, invoice.valorOriginal)}</td>
+                        <td>
+                          {boletoParameterFromLink(invoice.linkBoleto) ? "Pronto" : "-"}
+                        </td>
                       </tr>
                     );
                   })}
@@ -1939,15 +2241,16 @@ export default function Home() {
           aria-modal="true"
           aria-label="Disparo de template WABA"
         >
-          <div className="detailModal">
+          <div className="detailModal dispatchModal">
             <div className="detailHeader">
               <div>
                 <span>Disparo WABA</span>
-                <strong>Enviar template</strong>
+                <strong>Template de vencimento</strong>
               </div>
               <button
                 type="button"
-                onClick={() => setIsDispatchModalOpen(false)}
+                onClick={closeDispatchModal}
+                disabled={dispIsSending}
                 aria-label="Fechar"
               >
                 ×
@@ -1957,36 +2260,119 @@ export default function Home() {
               <Send size={18} aria-hidden="true" />
               <span>
                 <strong>{dispSelectedIds.size}</strong>{" "}
-                {dispSelectedIds.size === 1 ? "fatura selecionada" : "faturas selecionadas"} para
-                disparo.
+                {dispSelectedIds.size === 1 ? "fatura selecionada" : "faturas selecionadas"}.
+                {" "}
+                <strong>{dispatchValidCount}</strong>{" "}
+                {dispatchValidCount === 1 ? "contato pronto" : "contatos prontos"}
+                {dispatchInvalidCount > 0
+                  ? ` e ${dispatchInvalidCount} com dados incompletos`
+                  : ""}.
               </span>
             </div>
-            <div className="fieldGroup" style={{ marginBottom: 20 }}>
-              <label htmlFor="dispTemplateName">Nome do template</label>
-              <input
-                id="dispTemplateName"
-                value={dispTemplateName}
-                onChange={(event) => setDispTemplateName(event.target.value)}
-                placeholder="ex: cobranca_vencida"
-                autoComplete="off"
-              />
+            {dispDispatchError ? (
+              <div className="notice errorNotice dispatchError" role="alert">
+                <AlertTriangle size={18} aria-hidden="true" />
+                <span>{dispDispatchError}</span>
+              </div>
+            ) : null}
+
+            {dispatchProgress ? (
+              <section className="dispatchProgress" aria-label="Progresso do disparo">
+                <div className="dispatchProgressHeader">
+                  <span>Progresso</span>
+                  <strong>
+                    {dispatchProgress.completed}/{dispatchProgress.total}
+                  </strong>
+                </div>
+                <div
+                  className="dispatchProgressBar"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={dispatchProgressPercent}
+                >
+                  <i style={{ width: `${dispatchProgressPercent}%` }} />
+                </div>
+                <div className="dispatchProgressMeta">
+                  <span>{dispatchProgressStatus}</span>
+                  <span>
+                    {dispatchProgress.sent} enviados - {dispatchProgress.failed} falhas
+                  </span>
+                </div>
+              </section>
+            ) : null}
+
+            <div className="dispatchPreviewGrid">
+              <section className="templatePreview" aria-label="Preview do template">
+                <span>Preview do template</span>
+                <div className="waPreview">
+                  <div className="waBubble">
+                    <p>
+                      Olá, <strong className="templateVar">{dispatchPreviewCliente}</strong>!
+                      Tudo bem?
+                    </p>
+                    <p>
+                      Identificamos que o seu pagamento com vencimento em{" "}
+                      <strong className="templateVar">{dispatchPreviewAtraso}</strong>{" "}
+                      ainda consta em aberto.
+                    </p>
+                    <p>
+                      Pedimos, por gentileza, que verifique a regularização assim
+                      que possível.
+                    </p>
+                    <p>
+                      Caso o pagamento já tenha sido realizado, por favor,
+                      desconsidere esta mensagem.
+                    </p>
+                    <p>
+                      Se precisar de ajuda ou quiser confirmar alguma informação,
+                      estamos à disposição.
+                    </p>
+                  </div>
+                  <button className="waButton" type="button" aria-disabled="true" tabIndex={-1}>
+                    <ExternalLink size={18} aria-hidden="true" />
+                    Abrir Boleto
+                  </button>
+                </div>
+              </section>
+
+              <section className="dispatchParams" aria-label="Parâmetros do disparo">
+                <span>Parâmetros do primeiro envio</span>
+                <dl>
+                  <div>
+                    <dt>Cliente</dt>
+                    <dd>{dispatchPreviewCliente}</dd>
+                  </div>
+                  <div>
+                    <dt>atraso</dt>
+                    <dd>{dispatchPreviewAtraso}</dd>
+                  </div>
+                  <div>
+                    <dt>BOLETO</dt>
+                    <dd>{dispatchPreviewBoleto}</dd>
+                  </div>
+                  <div>
+                    <dt>to</dt>
+                    <dd>{dispatchPreviewTo}</dd>
+                  </div>
+                </dl>
+              </section>
             </div>
             <div className="detailActions">
-              <button type="button" onClick={() => setIsDispatchModalOpen(false)}>
-                Cancelar
+              <button type="button" onClick={closeDispatchModal} disabled={dispIsSending}>
+                {dispatchProgress?.finished ? "Fechar" : "Cancelar"}
               </button>
               <button
                 type="button"
-                disabled={!dispTemplateName.trim()}
-                onClick={() => {
-                  showActionFeedback(
-                    `Em breve: disparo do template "${dispTemplateName}" para ${dispSelectedIds.size} contato(s).`
-                  );
-                  setIsDispatchModalOpen(false);
-                }}
+                disabled={
+                  dispatchValidCount === 0 ||
+                  dispIsSending ||
+                  Boolean(dispatchProgress?.finished)
+                }
+                onClick={handleConfirmDispatch}
               >
                 <Send size={17} aria-hidden="true" />
-                Confirmar disparo
+                {dispIsSending ? "Enviando" : "Confirmar disparo"}
               </button>
             </div>
           </div>

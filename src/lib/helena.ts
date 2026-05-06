@@ -1,5 +1,9 @@
 import { asString } from "./rastro";
 
+const DEFAULT_MESSAGE_BASE_URL = "https://api.helena.run/chat/v1";
+const DEFAULT_MESSAGE_FROM = "5583988098480";
+const DEFAULT_TEMPLATE_ID = "9be1f_faturadiadovencimento";
+
 export type HelenaContact = {
   id: string;
   name: string | null;
@@ -35,6 +39,26 @@ function getHelenaConfig() {
   }
 
   return { token, baseUrl };
+}
+
+function getHelenaMessageConfig() {
+  const token = process.env.HELENA_API_TOKEN?.trim();
+  const baseUrl = (
+    process.env.HELENA_CHAT_API_BASE_URL?.trim() || DEFAULT_MESSAGE_BASE_URL
+  ).replace(/\/$/, "");
+  const from = process.env.HELENA_MESSAGE_FROM?.trim() || DEFAULT_MESSAGE_FROM;
+  const templateId =
+    process.env.HELENA_TEMPLATE_ID?.trim() || DEFAULT_TEMPLATE_ID;
+
+  if (!token) {
+    throw new HelenaApiError(
+      "HELENA_API_TOKEN nao configurado no ambiente do servidor.",
+      500,
+      null
+    );
+  }
+
+  return { token, baseUrl, from, templateId };
 }
 
 export async function getHelenaContact(contactId: string): Promise<HelenaContact> {
@@ -93,4 +117,65 @@ export function cpfFromContact(contact: HelenaContact) {
     asString(fields.cpf_cnpj) ??
     asString(fields.documento)
   );
+}
+
+export async function sendHelenaInvoiceTemplate({
+  cliente,
+  atraso,
+  boleto,
+  to
+}: {
+  cliente: string;
+  atraso: string;
+  boleto: string;
+  to: string;
+}) {
+  const { token, baseUrl, from, templateId } = getHelenaMessageConfig();
+  const payload = {
+    body: {
+      parameters: {
+        Cliente: cliente,
+        atraso,
+        BOLETO: boleto
+      },
+      templateId
+    },
+    from,
+    to,
+    options: {
+      hiddenSession: true
+    }
+  };
+
+  const response = await fetch(`${baseUrl}/message/send`, {
+    method: "POST",
+    headers: {
+      Authorization: token,
+      accept: "application/json",
+      "content-type": "application/*+json"
+    },
+    body: JSON.stringify(payload),
+    cache: "no-store"
+  });
+  const text = await response.text();
+  let result: unknown = text;
+
+  try {
+    result = text ? JSON.parse(text) : null;
+  } catch {
+    result = { raw: text.slice(0, 1200) };
+  }
+
+  if (!response.ok) {
+    throw new HelenaApiError(
+      `Falha ao enviar template Helena (${response.status}).`,
+      response.status,
+      result
+    );
+  }
+
+  return {
+    status: response.status,
+    result
+  };
 }
