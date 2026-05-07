@@ -1327,7 +1327,7 @@ export default function Home() {
   }
 
   return (
-    <main className="appShell">
+    <main className={`appShell ${publicUserId ? "publicShell" : ""}`}>
       {isLoading || dispIsLoading ? (
         <div className="loadingOverlay" role="status" aria-live="polite">
           <div className="loadingModal">
