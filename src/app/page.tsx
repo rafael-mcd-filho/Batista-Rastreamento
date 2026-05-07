@@ -2258,18 +2258,29 @@ export default function Home() {
                 ×
               </button>
             </div>
-            <div className="notice" style={{ marginBottom: 20 }}>
-              <Send size={18} aria-hidden="true" />
-              <span>
-                <strong>{dispSelectedIds.size}</strong>{" "}
-                {dispSelectedIds.size === 1 ? "fatura selecionada" : "faturas selecionadas"}.
-                {" "}
-                <strong>{dispatchValidCount}</strong>{" "}
-                {dispatchValidCount === 1 ? "contato pronto" : "contatos prontos"}
-                {dispatchInvalidCount > 0
-                  ? ` e ${dispatchInvalidCount} com dados incompletos`
-                  : ""}.
-              </span>
+            <div className="dispatchCompactBar">
+              <div className="notice dispatchSummary">
+                <Send size={18} aria-hidden="true" />
+                <span>
+                  <strong>{dispSelectedIds.size}</strong>{" "}
+                  {dispSelectedIds.size === 1 ? "fatura selecionada" : "faturas selecionadas"}.
+                  {" "}
+                  <strong>{dispatchValidCount}</strong>{" "}
+                  {dispatchValidCount === 1 ? "contato pronto" : "contatos prontos"}
+                  {dispatchInvalidCount > 0
+                    ? ` e ${dispatchInvalidCount} com dados incompletos`
+                    : ""}.
+                </span>
+              </div>
+              <label className="dispatchOption">
+                <input
+                  type="checkbox"
+                  checked={dispatchHiddenSession}
+                  disabled={dispIsSending}
+                  onChange={(event) => setDispatchHiddenSession(event.target.checked)}
+                />
+                <span>Oculto</span>
+              </label>
             </div>
             {dispDispatchError ? (
               <div className="notice errorNotice dispatchError" role="alert">
@@ -2277,16 +2288,6 @@ export default function Home() {
                 <span>{dispDispatchError}</span>
               </div>
             ) : null}
-
-            <label className="dispatchOption">
-              <input
-                type="checkbox"
-                checked={dispatchHiddenSession}
-                disabled={dispIsSending}
-                onChange={(event) => setDispatchHiddenSession(event.target.checked)}
-              />
-              <span>Oculto</span>
-            </label>
 
             {dispatchProgress ? (
               <section className="dispatchProgress" aria-label="Progresso do disparo">

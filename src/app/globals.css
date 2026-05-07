@@ -1377,11 +1377,33 @@ tbody tr:last-child td {
 }
 
 .dispatchModal {
-  width: min(900px, 100%);
+  width: min(820px, 100%);
+  padding: 16px;
+}
+
+.dispatchModal .detailHeader {
+  margin-bottom: 10px;
+}
+
+.dispatchModal .detailHeader strong {
+  font-size: 1.1rem;
 }
 
 .dispatchError {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+
+.dispatchCompactBar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: stretch;
+  margin-bottom: 12px;
+}
+
+.dispatchSummary {
+  min-height: 42px;
+  padding: 9px 12px;
 }
 
 .dispatchOption {
@@ -1393,7 +1415,6 @@ tbody tr:last-child td {
   align-items: center;
   gap: 9px;
   padding: 0 12px;
-  margin-bottom: 16px;
   color: var(--text);
   font-weight: 900;
 }
@@ -1408,8 +1429,8 @@ tbody tr:last-child td {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fbfcfe;
-  padding: 12px;
-  margin-bottom: 16px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
 }
 
 .dispatchProgressHeader,
@@ -1455,9 +1476,9 @@ tbody tr:last-child td {
 
 .dispatchPreviewGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.8fr);
-  gap: 16px;
-  margin-bottom: 20px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(230px, 0.75fr);
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .templatePreview,
@@ -1474,7 +1495,7 @@ tbody tr:last-child td {
 }
 
 .waPreview {
-  margin-top: 8px;
+  margin-top: 6px;
   border: 1px solid #ddd6ce;
   border-radius: 8px;
   background-color: #eee7de;
@@ -1482,7 +1503,7 @@ tbody tr:last-child td {
     linear-gradient(30deg, rgba(255, 255, 255, 0.36) 12%, transparent 12.5%, transparent 87%, rgba(255, 255, 255, 0.36) 87.5%),
     linear-gradient(150deg, rgba(255, 255, 255, 0.36) 12%, transparent 12.5%, transparent 87%, rgba(255, 255, 255, 0.36) 87.5%);
   background-size: 28px 28px;
-  padding: 16px;
+  padding: 12px;
 }
 
 .waBubble {
@@ -1490,13 +1511,13 @@ tbody tr:last-child td {
   background: white;
   color: #475467;
   box-shadow: 0 4px 12px rgba(16, 24, 40, 0.08);
-  padding: 13px 16px;
-  font-size: 0.94rem;
-  line-height: 1.45;
+  padding: 11px 13px;
+  font-size: 0.88rem;
+  line-height: 1.38;
 }
 
 .waBubble p {
-  margin: 0 0 14px;
+  margin: 0 0 10px;
 }
 
 .waBubble p:last-child {
@@ -1510,8 +1531,8 @@ tbody tr:last-child td {
 
 .waButton {
   width: 100%;
-  min-height: 40px;
-  margin-top: 8px;
+  min-height: 36px;
+  margin-top: 7px;
   border: 0;
   border-radius: 8px;
   background: white;
@@ -1527,8 +1548,8 @@ tbody tr:last-child td {
 .dispatchParams dl {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 10px;
-  margin: 8px 0 0;
+  gap: 7px;
+  margin: 6px 0 0;
 }
 
 .dispatchParams div {
@@ -1536,19 +1557,20 @@ tbody tr:last-child td {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fbfcfe;
-  padding: 10px 12px;
+  padding: 7px 10px;
 }
 
 .dispatchParams dt {
   color: var(--muted);
-  font-size: 0.74rem;
+  font-size: 0.69rem;
   font-weight: 900;
   text-transform: uppercase;
 }
 
 .dispatchParams dd {
-  margin: 4px 0 0;
+  margin: 2px 0 0;
   color: var(--text);
+  font-size: 0.88rem;
   font-weight: 800;
   overflow-wrap: anywhere;
 }
@@ -1556,6 +1578,10 @@ tbody tr:last-child td {
 @media (max-width: 980px) {
   .dispQuery {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .dispatchCompactBar {
+    grid-template-columns: 1fr;
   }
 
   .dispatchPreviewGrid {
