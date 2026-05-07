@@ -795,6 +795,73 @@ h1 {
   padding: 12px;
 }
 
+.publicShell .tableWrap {
+  overflow-x: hidden;
+}
+
+.publicShell table {
+  min-width: 100%;
+  table-layout: fixed;
+}
+
+.publicShell th,
+.publicShell td {
+  padding: 10px 8px;
+  font-size: 0.86rem;
+}
+
+.publicShell th {
+  font-size: 0.68rem;
+}
+
+.publicShell th:nth-child(1),
+.publicShell td:nth-child(1) {
+  width: 11%;
+}
+
+.publicShell th:nth-child(2),
+.publicShell td:nth-child(2) {
+  width: 13%;
+}
+
+.publicShell th:nth-child(3),
+.publicShell td:nth-child(3),
+.publicShell th:nth-child(4),
+.publicShell td:nth-child(4) {
+  width: 13%;
+}
+
+.publicShell th:nth-child(5),
+.publicShell td:nth-child(5),
+.publicShell th:nth-child(6),
+.publicShell td:nth-child(6),
+.publicShell th:nth-child(7),
+.publicShell td:nth-child(7) {
+  width: 11%;
+}
+
+.publicShell th:last-child,
+.publicShell td:last-child {
+  width: 100px;
+  padding-right: 10px;
+}
+
+.publicShell .invoiceActions {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+
+.publicShell .iconButton {
+  width: 32px;
+  height: 32px;
+}
+
+.publicShell .statusBadge {
+  min-height: 26px;
+  padding: 3px 8px;
+  font-size: 0.78rem;
+}
+
 .toneTotal .summaryIcon {
   background: var(--blue-soft);
   color: #1d4ed8;
