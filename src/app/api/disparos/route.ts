@@ -84,7 +84,12 @@ function buildDispatchPayload(invoice: DispatchInvoiceInput) {
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as { invoices?: unknown };
+    const body = (await request.json()) as {
+      invoices?: unknown;
+      hiddenSession?: unknown;
+    };
+    const hiddenSession =
+      typeof body.hiddenSession === "boolean" ? body.hiddenSession : true;
 
     if (!Array.isArray(body.invoices) || body.invoices.length === 0) {
       return NextResponse.json(
@@ -126,7 +131,10 @@ export async function POST(request: Request) {
       }
 
       try {
-        const result = await sendHelenaInvoiceTemplate(payload.message);
+        const result = await sendHelenaInvoiceTemplate({
+          ...payload.message,
+          hiddenSession
+        });
         enviados.push({
           ref,
           cliente: payload.message.cliente,

@@ -1384,6 +1384,26 @@ tbody tr:last-child td {
   margin-bottom: 16px;
 }
 
+.dispatchOption {
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfcfe;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  margin-bottom: 16px;
+  color: var(--text);
+  font-weight: 900;
+}
+
+.dispatchOption input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue);
+}
+
 .dispatchProgress {
   border: 1px solid var(--border);
   border-radius: 8px;

@@ -123,12 +123,14 @@ export async function sendHelenaInvoiceTemplate({
   cliente,
   atraso,
   boleto,
-  to
+  to,
+  hiddenSession
 }: {
   cliente: string;
   atraso: string;
   boleto: string;
   to: string;
+  hiddenSession: boolean;
 }) {
   const { token, baseUrl, from, templateId } = getHelenaMessageConfig();
   const payload = {
@@ -143,7 +145,7 @@ export async function sendHelenaInvoiceTemplate({
     from,
     to,
     options: {
-      hiddenSession: true
+      hiddenSession
     }
   };
 

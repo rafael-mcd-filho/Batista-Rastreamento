@@ -642,6 +642,7 @@ export default function Home() {
   const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
   const [dispIsSending, setDispIsSending] = useState(false);
   const [dispDispatchError, setDispDispatchError] = useState("");
+  const [dispatchHiddenSession, setDispatchHiddenSession] = useState(true);
   const [dispatchProgress, setDispatchProgress] =
     useState<DispatchQueueProgress | null>(null);
 
@@ -1123,6 +1124,7 @@ export default function Home() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              hiddenSession: dispatchHiddenSession,
               invoices: [dispatchInvoicePayload(invoice)]
             })
           });
@@ -2276,6 +2278,16 @@ export default function Home() {
               </div>
             ) : null}
 
+            <label className="dispatchOption">
+              <input
+                type="checkbox"
+                checked={dispatchHiddenSession}
+                disabled={dispIsSending}
+                onChange={(event) => setDispatchHiddenSession(event.target.checked)}
+              />
+              <span>Oculto</span>
+            </label>
+
             {dispatchProgress ? (
               <section className="dispatchProgress" aria-label="Progresso do disparo">
                 <div className="dispatchProgressHeader">
@@ -2354,6 +2366,10 @@ export default function Home() {
                   <div>
                     <dt>to</dt>
                     <dd>{dispatchPreviewTo}</dd>
+                  </div>
+                  <div>
+                    <dt>Oculto</dt>
+                    <dd>{dispatchHiddenSession ? "Sim" : "Não"}</dd>
                   </div>
                 </dl>
               </section>
