@@ -61,7 +61,7 @@ type Invoice = {
 
 type SearchResult = {
   origem?: {
-    tipo: "helena";
+        tipo: "contato";
     userId: string;
     contato: {
       id: string;
@@ -144,7 +144,7 @@ const statusChoices: Array<{ key: InvoiceGroup; label: string }> = [
 ];
 
 const pageSizeOptions: PageSize[] = [25, 50, 100];
-const dispatchIntervalMs = 1000;
+const dispatchIntervalMs = 500;
 const rangePresetOptions: Array<{ key: RangePreset; label: string }> = [
   { key: "today", label: "Hoje" },
   { key: "yesterday", label: "Ontem" },
@@ -1133,7 +1133,7 @@ export default function Home() {
 
           if (!response.ok || requestSent === 0 || requestFailed > 0) {
             throw new Error(
-              payload.message || firstFailure || "Falha ao enviar template."
+              payload.message || firstFailure || "Falha ao enviar mensagem."
             );
           }
 
@@ -1142,7 +1142,7 @@ export default function Home() {
           failed += 1;
           failures.push(
             `${currentName}: ${
-              caught instanceof Error ? caught.message : "Falha ao enviar template."
+              caught instanceof Error ? caught.message : "Falha ao enviar mensagem."
             }`
           );
         }
@@ -1192,7 +1192,7 @@ export default function Home() {
         return;
       }
 
-      showActionFeedback(`${sent} template(s) enviado(s).`);
+      showActionFeedback(`${sent} mensagem(ns) enviada(s).`);
     } catch (caught) {
       setDispDispatchError(
         caught instanceof Error ? caught.message : "Falha ao enviar disparos."
@@ -1306,7 +1306,7 @@ export default function Home() {
   const dispatchProgressStatus = dispatchProgress?.finished
     ? "Fila finalizada"
     : dispatchProgress?.waiting
-      ? "Aguardando 1 segundo para o próximo envio"
+      ? "Aguardando 0,5 segundo para o próximo envio"
       : dispatchProgress?.currentName
         ? `Enviando para ${dispatchProgress.currentName}`
         : "Pronto para iniciar";
@@ -1791,7 +1791,7 @@ export default function Home() {
             {result.origem ? (
               <section className="customerBand searchBand">
                 <div>
-                  <span>Contato Helena</span>
+                  <span>Contato</span>
                   <strong>{result.origem.contato.nome || "Sem nome no contato"}</strong>
                 </div>
                 <div>
@@ -2157,7 +2157,7 @@ export default function Home() {
                   }}
                 >
                   <Send size={17} aria-hidden="true" />
-                  Enviar template
+                  Enviar mensagem
                 </button>
               </div>
             </div>
@@ -2239,13 +2239,13 @@ export default function Home() {
           className="detailOverlay"
           role="dialog"
           aria-modal="true"
-          aria-label="Disparo de template WABA"
+          aria-label="Disparo de mensagem"
         >
           <div className="detailModal dispatchModal">
             <div className="detailHeader">
               <div>
-                <span>Disparo WABA</span>
-                <strong>Template de vencimento</strong>
+                <span>Disparo</span>
+                <strong>Mensagem de vencimento</strong>
               </div>
               <button
                 type="button"
@@ -2303,8 +2303,8 @@ export default function Home() {
             ) : null}
 
             <div className="dispatchPreviewGrid">
-              <section className="templatePreview" aria-label="Preview do template">
-                <span>Preview do template</span>
+              <section className="templatePreview" aria-label="Preview da mensagem">
+                <span>Preview da mensagem</span>
                 <div className="waPreview">
                   <div className="waBubble">
                     <p>

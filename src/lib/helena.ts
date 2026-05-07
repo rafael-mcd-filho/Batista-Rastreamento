@@ -32,7 +32,7 @@ function getHelenaConfig() {
 
   if (!token) {
     throw new HelenaApiError(
-      "HELENA_API_TOKEN não configurado no ambiente do servidor.",
+      "Servico de contatos nao configurado no ambiente do servidor.",
       500,
       null
     );
@@ -52,7 +52,7 @@ function getHelenaMessageConfig() {
 
   if (!token) {
     throw new HelenaApiError(
-      "HELENA_API_TOKEN nao configurado no ambiente do servidor.",
+      "Servico de mensagens nao configurado no ambiente do servidor.",
       500,
       null
     );
@@ -84,7 +84,7 @@ export async function getHelenaContact(contactId: string): Promise<HelenaContact
 
   if (!response.ok || !payload || typeof payload !== "object") {
     throw new HelenaApiError(
-      `Falha na API Helena (${response.status}).`,
+      `Falha ao consultar contato (${response.status}).`,
       response.status,
       payload
     );
@@ -168,7 +168,7 @@ export async function sendHelenaInvoiceTemplate({
 
   if (!response.ok) {
     throw new HelenaApiError(
-      `Falha ao enviar template Helena (${response.status}).`,
+      `Falha ao enviar mensagem (${response.status}).`,
       response.status,
       result
     );

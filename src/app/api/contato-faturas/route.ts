@@ -62,7 +62,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       origem: {
-        tipo: "helena",
+        tipo: "contato",
         userId,
         contato: {
           id: contato.id,
@@ -76,7 +76,14 @@ export async function GET(request: Request) {
       faturas
     });
   } catch (error) {
-    if (error instanceof HelenaApiError || error instanceof RastroApiError) {
+    if (error instanceof HelenaApiError) {
+      return NextResponse.json(
+        { message: "Falha ao consultar contato." },
+        { status: error.status >= 500 ? 502 : error.status }
+      );
+    }
+
+    if (error instanceof RastroApiError) {
       return NextResponse.json(
         { message: error.message, details: error.details },
         { status: error.status >= 500 ? 502 : error.status }

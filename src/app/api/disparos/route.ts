@@ -140,7 +140,7 @@ export async function POST(request: Request) {
           message:
             error instanceof Error
               ? error.message
-              : "Falha ao enviar template Helena."
+              : "Falha ao enviar mensagem."
         });
       }
     }
@@ -163,7 +163,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof HelenaApiError) {
       return NextResponse.json(
-        { message: error.message, details: error.details },
+        { message: "Falha ao enviar mensagem." },
         { status: error.status >= 500 ? 502 : error.status }
       );
     }
