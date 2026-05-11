@@ -345,6 +345,28 @@ function normalizeDispatchPhone(value: string | null) {
   return null;
 }
 
+function normalizeCopyPhone(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  let digits = value.replace(/\D/g, "");
+
+  if (/^55\d{10,11}$/.test(digits)) {
+    digits = digits.slice(2);
+  }
+
+  if (/^0\d{10,11}$/.test(digits)) {
+    digits = digits.slice(1);
+  }
+
+  if (/^\d{10,11}$/.test(digits)) {
+    return digits;
+  }
+
+  return null;
+}
+
 function dispatchMissingFields(invoice: Invoice) {
   const missing: string[] = [];
 
@@ -813,6 +835,21 @@ export default function Home() {
     (safePage - 1) * pageSize,
     safePage * pageSize
   );
+  const copyablePhoneNumbers = useMemo(() => {
+    const seen = new Set<string>();
+    const phones: string[] = [];
+
+    sortedInvoices.forEach((invoice) => {
+      const phone = normalizeCopyPhone(invoice.clienteTelefone);
+
+      if (phone && !seen.has(phone)) {
+        seen.add(phone);
+        phones.push(phone);
+      }
+    });
+
+    return phones;
+  }, [sortedInvoices]);
 
   async function runSearch(search: () => Promise<void>) {
     const loadingStart = Date.now();
@@ -1016,6 +1053,22 @@ export default function Home() {
 
     downloadCsv(`faturas-${inputDate(new Date())}.csv`, sortedInvoices);
     showActionFeedback("CSV exportado.");
+  }
+
+  async function copyCurrentPhoneNumbers() {
+    if (copyablePhoneNumbers.length === 0) {
+      showActionFeedback("Não há telefones válidos para copiar.");
+      return;
+    }
+
+    const copied = await copyText(copyablePhoneNumbers.join(","));
+    showActionFeedback(
+      copied
+        ? `${copyablePhoneNumbers.length} ${
+            copyablePhoneNumbers.length === 1 ? "número copiado" : "números copiados"
+          }.`
+        : "Não foi possível copiar. Verifique as permissões do navegador."
+    );
   }
 
   function handlePageSizeChange(value: string) {
@@ -1928,6 +1981,17 @@ export default function Home() {
                     >
                       <Download size={17} aria-hidden="true" />
                       CSV
+                    </button>
+                    <button
+                      className="exportButton"
+                      type="button"
+                      onClick={copyCurrentPhoneNumbers}
+                      disabled={copyablePhoneNumbers.length === 0}
+                      title="Copiar números"
+                      aria-label="Copiar todos os números do resultado"
+                    >
+                      <Copy size={17} aria-hidden="true" />
+                      Números
                     </button>
                     <div className="filterTabs" aria-label="Filtros de status">
                       {filterOptions.map((option) => (
