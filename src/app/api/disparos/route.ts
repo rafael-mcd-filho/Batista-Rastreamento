@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { boletoParameterFromLink } from "../../../lib/boleto";
 import {
   HelenaApiError,
-  sendHelenaInvoiceTemplate
+  sendHelenaInvoiceTemplate,
+  sendHelenaRenewalTemplate
 } from "../../../lib/helena";
 import { asString } from "../../../lib/rastro";
 
@@ -10,6 +11,52 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 type DispatchInvoiceInput = Record<string, unknown>;
+type DispatchTemplate = "invoice" | "renovacao";
+
+type BuiltDispatchPayload =
+  | {
+      ok: false;
+      message: string;
+    }
+  | {
+      ok: true;
+      template: "invoice";
+      message: {
+        cliente: string;
+        atraso: string;
+        boleto: string;
+        to: string;
+      };
+    }
+  | {
+      ok: true;
+      template: "renovacao";
+      message: {
+        nomeCliente: string;
+        to: string;
+      };
+    };
+
+function dispatchTemplateFrom(value: unknown): DispatchTemplate {
+  return value === "renovacao" ? "renovacao" : "invoice";
+}
+
+function firstContactName(value: string | null) {
+  const normalized = value?.trim().replace(/\s+/g, " ");
+  const firstName = normalized?.split(" ")[0]?.toLocaleLowerCase("pt-BR");
+
+  if (!firstName) {
+    return null;
+  }
+
+  const [firstLetter, ...rest] = Array.from(firstName);
+
+  if (!firstLetter) {
+    return null;
+  }
+
+  return `${firstLetter.toLocaleUpperCase("pt-BR")}${rest.join("")}`;
+}
 
 function normalizeBrazilPhone(value: string | null) {
   if (!value) {
@@ -38,15 +85,47 @@ function invoiceRef(invoice: DispatchInvoiceInput, index: number) {
   );
 }
 
-function buildDispatchPayload(invoice: DispatchInvoiceInput) {
+function buildDispatchPayload(
+  invoice: DispatchInvoiceInput,
+  template: DispatchTemplate
+): BuiltDispatchPayload {
+  const to = normalizeBrazilPhone(asString(invoice.clienteTelefone));
+  const missing: string[] = [];
+
+  if (template === "renovacao") {
+    const nomeCliente = firstContactName(asString(invoice.clienteNome));
+
+    if (!nomeCliente) {
+      missing.push("nome do cliente");
+    }
+
+    if (!to) {
+      missing.push("telefone");
+    }
+
+    if (missing.length > 0 || !nomeCliente || !to) {
+      return {
+        ok: false,
+        message: `Dados incompletos: ${missing.join(", ")}.`
+      };
+    }
+
+    return {
+      ok: true,
+      template,
+      message: {
+        nomeCliente,
+        to
+      }
+    };
+  }
+
   const cliente =
-    asString(invoice.clienteNome)?.trim() ||
-    asString(invoice.clienteId)?.trim() ||
+    firstContactName(asString(invoice.clienteNome)) ||
+    firstContactName(asString(invoice.clienteId)) ||
     "";
   const atraso = asString(invoice.vencimento)?.trim() ?? "";
   const boleto = boletoParameterFromLink(asString(invoice.linkBoleto));
-  const to = normalizeBrazilPhone(asString(invoice.clienteTelefone));
-  const missing: string[] = [];
 
   if (!cliente) {
     missing.push("cliente");
@@ -73,6 +152,7 @@ function buildDispatchPayload(invoice: DispatchInvoiceInput) {
 
   return {
     ok: true as const,
+    template,
     message: {
       cliente,
       atraso,
@@ -87,9 +167,11 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       invoices?: unknown;
       hiddenSession?: unknown;
+      template?: unknown;
     };
     const hiddenSession =
       typeof body.hiddenSession === "boolean" ? body.hiddenSession : true;
+    const template = dispatchTemplateFrom(body.template);
 
     if (!Array.isArray(body.invoices) || body.invoices.length === 0) {
       return NextResponse.json(
@@ -119,7 +201,7 @@ export async function POST(request: Request) {
       const record = invoice as DispatchInvoiceInput;
       const ref = invoiceRef(record, index);
       const cliente = asString(record.clienteNome) ?? asString(record.clienteId);
-      const payload = buildDispatchPayload(record);
+      const payload = buildDispatchPayload(record, template);
 
       if (!payload.ok) {
         falhas.push({
@@ -131,13 +213,19 @@ export async function POST(request: Request) {
       }
 
       try {
-        const result = await sendHelenaInvoiceTemplate({
-          ...payload.message,
-          hiddenSession
+        const result =
+          payload.template === "renovacao"
+            ? await sendHelenaRenewalTemplate({
+                ...payload.message,
+                hiddenSession
+              })
+            : await sendHelenaInvoiceTemplate({
+                ...payload.message,
+                hiddenSession
         });
         enviados.push({
           ref,
-          cliente: payload.message.cliente,
+          cliente: cliente || ref,
           to: payload.message.to,
           status: result.status
         });

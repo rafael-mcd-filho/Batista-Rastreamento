@@ -2,7 +2,8 @@ import { asString } from "./rastro";
 
 const DEFAULT_MESSAGE_BASE_URL = "https://api.helena.run/chat/v1";
 const DEFAULT_MESSAGE_FROM = "5583988098480";
-const DEFAULT_TEMPLATE_ID = "9be1f_faturadiadovencimento";
+const DEFAULT_INVOICE_TEMPLATE_ID = "9be1f_faturadiadovencimento";
+const DEFAULT_RENEWAL_TEMPLATE_ID = "27cb8_renovacao";
 
 export type HelenaContact = {
   id: string;
@@ -47,8 +48,6 @@ function getHelenaMessageConfig() {
     process.env.HELENA_CHAT_API_BASE_URL?.trim() || DEFAULT_MESSAGE_BASE_URL
   ).replace(/\/$/, "");
   const from = process.env.HELENA_MESSAGE_FROM?.trim() || DEFAULT_MESSAGE_FROM;
-  const templateId =
-    process.env.HELENA_TEMPLATE_ID?.trim() || DEFAULT_TEMPLATE_ID;
 
   if (!token) {
     throw new HelenaApiError(
@@ -58,7 +57,18 @@ function getHelenaMessageConfig() {
     );
   }
 
-  return { token, baseUrl, from, templateId };
+  return { token, baseUrl, from };
+}
+
+function getInvoiceTemplateId() {
+  return process.env.HELENA_TEMPLATE_ID?.trim() || DEFAULT_INVOICE_TEMPLATE_ID;
+}
+
+function getRenewalTemplateId() {
+  return (
+    process.env.HELENA_RENOVACAO_TEMPLATE_ID?.trim() ||
+    DEFAULT_RENEWAL_TEMPLATE_ID
+  );
 }
 
 export async function getHelenaContact(contactId: string): Promise<HelenaContact> {
@@ -132,14 +142,52 @@ export async function sendHelenaInvoiceTemplate({
   to: string;
   hiddenSession: boolean;
 }) {
-  const { token, baseUrl, from, templateId } = getHelenaMessageConfig();
+  return sendHelenaTemplateMessage({
+    templateId: getInvoiceTemplateId(),
+    parameters: {
+      Cliente: cliente,
+      atraso,
+      BOLETO: boleto
+    },
+    to,
+    hiddenSession
+  });
+}
+
+export async function sendHelenaRenewalTemplate({
+  nomeCliente,
+  to,
+  hiddenSession
+}: {
+  nomeCliente: string;
+  to: string;
+  hiddenSession: boolean;
+}) {
+  return sendHelenaTemplateMessage({
+    templateId: getRenewalTemplateId(),
+    parameters: {
+      "Nome do Cliente": nomeCliente
+    },
+    to,
+    hiddenSession
+  });
+}
+
+async function sendHelenaTemplateMessage({
+  templateId,
+  parameters,
+  to,
+  hiddenSession
+}: {
+  templateId: string;
+  parameters: Record<string, string>;
+  to: string;
+  hiddenSession: boolean;
+}) {
+  const { token, baseUrl, from } = getHelenaMessageConfig();
   const payload = {
     body: {
-      parameters: {
-        Cliente: cliente,
-        atraso,
-        BOLETO: boleto
-      },
+      parameters,
       templateId
     },
     from,

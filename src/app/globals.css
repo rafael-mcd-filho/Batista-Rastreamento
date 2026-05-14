@@ -1588,10 +1588,16 @@ tbody tr:last-child td {
 
 .dispatchModal {
   width: min(820px, 100%);
+  height: min(560px, calc(100vh - 44px));
+  max-height: min(560px, calc(100vh - 44px));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   padding: 16px;
 }
 
 .dispatchModal .detailHeader {
+  flex: 0 0 auto;
   margin-bottom: 10px;
 }
 
@@ -1600,7 +1606,12 @@ tbody tr:last-child td {
 }
 
 .dispatchError {
+  flex: 0 0 auto;
   margin-bottom: 12px;
+}
+
+.dispatchModal .detailActions {
+  flex: 0 0 auto;
 }
 
 .dispatchCompactBar {
@@ -1608,16 +1619,17 @@ tbody tr:last-child td {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: stretch;
+  flex: 0 0 auto;
   margin-bottom: 12px;
 }
 
 .dispatchSummary {
-  min-height: 42px;
+  min-height: 56px;
   padding: 9px 12px;
 }
 
 .dispatchOption {
-  min-height: 42px;
+  min-height: 56px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fbfcfe;
@@ -1627,6 +1639,43 @@ tbody tr:last-child td {
   padding: 0 12px;
   color: var(--text);
   font-weight: 900;
+}
+
+.dispatchControlGroup {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.dispatchSelect {
+  min-height: 56px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfcfe;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  padding: 6px 10px;
+}
+
+.dispatchSelect span {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 900;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.dispatchSelect select {
+  min-width: 150px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 900;
+  outline: none;
 }
 
 .dispatchOption input {
@@ -1640,6 +1689,7 @@ tbody tr:last-child td {
   border-radius: 8px;
   background: #fbfcfe;
   padding: 10px 12px;
+  flex: 0 0 auto;
   margin-bottom: 12px;
 }
 
@@ -1688,12 +1738,17 @@ tbody tr:last-child td {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(230px, 0.75fr);
   gap: 12px;
+  flex: 1 1 auto;
+  min-height: 0;
   margin-bottom: 16px;
 }
 
 .templatePreview,
 .dispatchParams {
   min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .templatePreview > span,
@@ -1713,6 +1768,9 @@ tbody tr:last-child td {
     linear-gradient(30deg, rgba(255, 255, 255, 0.36) 12%, transparent 12.5%, transparent 87%, rgba(255, 255, 255, 0.36) 87.5%),
     linear-gradient(150deg, rgba(255, 255, 255, 0.36) 12%, transparent 12.5%, transparent 87%, rgba(255, 255, 255, 0.36) 87.5%);
   background-size: 28px 28px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
   padding: 12px;
 }
 
@@ -1758,8 +1816,12 @@ tbody tr:last-child td {
 .dispatchParams dl {
   display: grid;
   grid-template-columns: 1fr;
+  align-content: start;
   gap: 7px;
+  flex: 1 1 auto;
+  min-height: 0;
   margin: 6px 0 0;
+  overflow: auto;
 }
 
 .dispatchParams div {
@@ -1792,6 +1854,15 @@ tbody tr:last-child td {
 
   .dispatchCompactBar {
     grid-template-columns: 1fr;
+  }
+
+  .dispatchControlGroup {
+    justify-content: stretch;
+  }
+
+  .dispatchSelect,
+  .dispatchOption {
+    flex: 1 1 160px;
   }
 
   .dispatchPreviewGrid {

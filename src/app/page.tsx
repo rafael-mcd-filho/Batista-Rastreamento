@@ -25,6 +25,7 @@ import { boletoParameterFromLink } from "../lib/boleto";
 type InvoiceGroup = "overdue" | "open" | "paid" | "other";
 type Filter = "all" | InvoiceGroup;
 type MainTab = "client" | "invoices" | "disparos";
+type DispatchTemplate = "invoice" | "renovacao";
 type PageSize = 25 | 50 | 100;
 type SortKey = "cliente" | "vencimento" | "pagamento" | "valor" | "status";
 type SortDirection = "asc" | "desc";
@@ -145,6 +146,22 @@ const statusChoices: Array<{ key: InvoiceGroup; label: string }> = [
 
 const pageSizeOptions: PageSize[] = [25, 50, 100];
 const dispatchIntervalMs = 500;
+const dispatchTemplateOptions: Array<{
+  key: DispatchTemplate;
+  label: string;
+  title: string;
+}> = [
+  {
+    key: "invoice",
+    label: "Vencimento",
+    title: "Mensagem de vencimento"
+  },
+  {
+    key: "renovacao",
+    label: "Renovacao",
+    title: "Mensagem de renovacao"
+  }
+];
 const rangePresetOptions: Array<{ key: RangePreset; label: string }> = [
   { key: "today", label: "Hoje" },
   { key: "yesterday", label: "Ontem" },
@@ -367,10 +384,39 @@ function normalizeCopyPhone(value: string | null) {
   return null;
 }
 
-function dispatchMissingFields(invoice: Invoice) {
+function firstContactName(value: string | null) {
+  const normalized = value?.trim().replace(/\s+/g, " ");
+  const firstName = normalized?.split(" ")[0]?.toLocaleLowerCase("pt-BR");
+
+  if (!firstName) {
+    return null;
+  }
+
+  const [firstLetter, ...rest] = Array.from(firstName);
+
+  if (!firstLetter) {
+    return null;
+  }
+
+  return `${firstLetter.toLocaleUpperCase("pt-BR")}${rest.join("")}`;
+}
+
+function dispatchMissingFields(invoice: Invoice, template: DispatchTemplate) {
   const missing: string[] = [];
 
-  if (!(invoice.clienteNome || invoice.clienteId)) {
+  if (template === "renovacao") {
+    if (!firstContactName(invoice.clienteNome)) {
+      missing.push("nome");
+    }
+
+    if (!normalizeDispatchPhone(invoice.clienteTelefone)) {
+      missing.push("telefone");
+    }
+
+    return missing;
+  }
+
+  if (!(firstContactName(invoice.clienteNome) || firstContactName(invoice.clienteId))) {
     missing.push("cliente");
   }
 
@@ -665,6 +711,8 @@ export default function Home() {
   const [dispIsSending, setDispIsSending] = useState(false);
   const [dispDispatchError, setDispDispatchError] = useState("");
   const [dispatchHiddenSession, setDispatchHiddenSession] = useState(true);
+  const [dispatchTemplate, setDispatchTemplate] =
+    useState<DispatchTemplate>("invoice");
   const [dispatchProgress, setDispatchProgress] =
     useState<DispatchQueueProgress | null>(null);
 
@@ -1178,6 +1226,7 @@ export default function Home() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               hiddenSession: dispatchHiddenSession,
+              template: dispatchTemplate,
               invoices: [dispatchInvoicePayload(invoice)]
             })
           });
@@ -1328,10 +1377,16 @@ export default function Home() {
     [dispInvoices, dispSelectedIds]
   );
   const dispatchPreviewInvoice = dispSelectedInvoices[0] ?? null;
+  const dispatchTemplateMeta =
+    dispatchTemplateOptions.find((option) => option.key === dispatchTemplate) ??
+    dispatchTemplateOptions[0];
   const dispatchPreviewCliente =
-    dispatchPreviewInvoice?.clienteNome ||
-    dispatchPreviewInvoice?.clienteId ||
+    firstContactName(dispatchPreviewInvoice?.clienteNome ?? null) ||
+    firstContactName(dispatchPreviewInvoice?.clienteId ?? null) ||
     "[Cliente]";
+  const dispatchPreviewPrimeiroNome =
+    firstContactName(dispatchPreviewInvoice?.clienteNome ?? null) ||
+    "[Nome do Cliente]";
   const dispatchPreviewAtraso =
     dispatchPreviewInvoice?.vencimento || "[atraso]";
   const dispatchPreviewBoleto =
@@ -1341,16 +1396,16 @@ export default function Home() {
   const dispatchInvalidCount = useMemo(
     () =>
       dispSelectedInvoices.filter(
-        (invoice) => dispatchMissingFields(invoice).length > 0
+        (invoice) => dispatchMissingFields(invoice, dispatchTemplate).length > 0
       ).length,
-    [dispSelectedInvoices]
+    [dispSelectedInvoices, dispatchTemplate]
   );
   const dispatchReadyInvoices = useMemo(
     () =>
       dispSelectedInvoices.filter(
-        (invoice) => dispatchMissingFields(invoice).length === 0
+        (invoice) => dispatchMissingFields(invoice, dispatchTemplate).length === 0
       ),
-    [dispSelectedInvoices]
+    [dispSelectedInvoices, dispatchTemplate]
   );
   const dispatchValidCount = dispatchReadyInvoices.length;
   const dispatchProgressPercent = dispatchProgress
@@ -2311,7 +2366,7 @@ export default function Home() {
             <div className="detailHeader">
               <div>
                 <span>Disparo</span>
-                <strong>Mensagem de vencimento</strong>
+                <strong>{dispatchTemplateMeta.title}</strong>
               </div>
               <button
                 type="button"
@@ -2336,15 +2391,35 @@ export default function Home() {
                     : ""}.
                 </span>
               </div>
-              <label className="dispatchOption">
-                <input
-                  type="checkbox"
-                  checked={dispatchHiddenSession}
-                  disabled={dispIsSending}
-                  onChange={(event) => setDispatchHiddenSession(event.target.checked)}
-                />
-                <span>Oculto</span>
-              </label>
+              <div className="dispatchControlGroup">
+                <label className="dispatchSelect">
+                  <span>Template</span>
+                  <select
+                    value={dispatchTemplate}
+                    disabled={dispIsSending}
+                    onChange={(event) => {
+                      setDispatchTemplate(event.target.value as DispatchTemplate);
+                      setDispDispatchError("");
+                      setDispatchProgress(null);
+                    }}
+                  >
+                    {dispatchTemplateOptions.map((option) => (
+                      <option key={option.key} value={option.key}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="dispatchOption">
+                  <input
+                    type="checkbox"
+                    checked={dispatchHiddenSession}
+                    disabled={dispIsSending}
+                    onChange={(event) => setDispatchHiddenSession(event.target.checked)}
+                  />
+                  <span>Oculto</span>
+                </label>
+              </div>
             </div>
             {dispDispatchError ? (
               <div className="notice errorNotice dispatchError" role="alert">
@@ -2384,57 +2459,107 @@ export default function Home() {
                 <span>Preview da mensagem</span>
                 <div className="waPreview">
                   <div className="waBubble">
-                    <p>
-                      Olá, <strong className="templateVar">{dispatchPreviewCliente}</strong>!
-                      Tudo bem?
-                    </p>
-                    <p>
-                      Identificamos que o seu pagamento com vencimento em{" "}
-                      <strong className="templateVar">{dispatchPreviewAtraso}</strong>{" "}
-                      ainda consta em aberto.
-                    </p>
-                    <p>
-                      Pedimos, por gentileza, que verifique a regularização assim
-                      que possível.
-                    </p>
-                    <p>
-                      Caso o pagamento já tenha sido realizado, por favor,
-                      desconsidere esta mensagem.
-                    </p>
-                    <p>
-                      Se precisar de ajuda ou quiser confirmar alguma informação,
-                      estamos à disposição.
-                    </p>
+                    {dispatchTemplate === "renovacao" ? (
+                      <>
+                        <p>
+                          Olá,{" "}
+                          <strong className="templateVar">
+                            {dispatchPreviewPrimeiroNome}
+                          </strong>
+                          ! Tudo bem? Esperamos que sim! 🧡🖤
+                        </p>
+                        <p>
+                          Passando para te dar um aviso importante. Para continuar
+                          oferecendo o melhor serviço e manter a qualidade do nosso
+                          atendimento, vamos atualizar o valor do nossa mensalidade
+                          a partir do próximo ciclo de boletos. ✅
+                        </p>
+                        <p>
+                          <strong>
+                            Ressaltamos que este é o nosso primeiro reajuste em 8
+                            anos
+                          </strong>
+                          , visando a melhora do serviço prestado e a readequação
+                          dos valores de mercado, onde ainda temos o valor mais
+                          competitivo e com o{" "}
+                          <strong>melhor custo-benefício.</strong> 🚙🏍️💸✅
+                        </p>
+                        <p>
+                          Agradecemos muito pela parceria e confiança em nossos
+                          serviços!{" "}
+                          <strong>
+                            Se tiver alguma dúvida, pode nos consultar por aqui.
+                          </strong>{" "}
+                          😊
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p>
+                          Olá,{" "}
+                          <strong className="templateVar">
+                            {dispatchPreviewCliente}
+                          </strong>
+                          ! Tudo bem?
+                        </p>
+                        <p>
+                          Identificamos que o seu pagamento com vencimento em{" "}
+                          <strong className="templateVar">
+                            {dispatchPreviewAtraso}
+                          </strong>{" "}
+                          ainda consta em aberto.
+                        </p>
+                        <p>
+                          Pedimos, por gentileza, que verifique a regularização
+                          assim que possível.
+                        </p>
+                        <p>
+                          Caso o pagamento já tenha sido realizado, por favor,
+                          desconsidere esta mensagem.
+                        </p>
+                        <p>
+                          Se precisar de ajuda ou quiser confirmar alguma
+                          informação, estamos à disposição.
+                        </p>
+                      </>
+                    )}
                   </div>
-                  <button className="waButton" type="button" aria-disabled="true" tabIndex={-1}>
-                    <ExternalLink size={18} aria-hidden="true" />
-                    Abrir Boleto
-                  </button>
+                  {dispatchTemplate === "invoice" ? (
+                    <button className="waButton" type="button" aria-disabled="true" tabIndex={-1}>
+                      <ExternalLink size={18} aria-hidden="true" />
+                      Abrir Boleto
+                    </button>
+                  ) : null}
                 </div>
               </section>
 
               <section className="dispatchParams" aria-label="Parâmetros do disparo">
                 <span>Parâmetros do primeiro envio</span>
                 <dl>
+                  {dispatchTemplate === "renovacao" ? (
+                    <div>
+                      <dt>Nome do Cliente</dt>
+                      <dd>{dispatchPreviewPrimeiroNome}</dd>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <dt>Cliente</dt>
+                        <dd>{dispatchPreviewCliente}</dd>
+                      </div>
+                      <div>
+                        <dt>atraso</dt>
+                        <dd>{dispatchPreviewAtraso}</dd>
+                      </div>
+                      <div>
+                        <dt>BOLETO</dt>
+                        <dd>{dispatchPreviewBoleto}</dd>
+                      </div>
+                    </>
+                  )}
                   <div>
-                    <dt>Cliente</dt>
-                    <dd>{dispatchPreviewCliente}</dd>
-                  </div>
-                  <div>
-                    <dt>atraso</dt>
-                    <dd>{dispatchPreviewAtraso}</dd>
-                  </div>
-                  <div>
-                    <dt>BOLETO</dt>
-                    <dd>{dispatchPreviewBoleto}</dd>
-                  </div>
-                  <div>
-                    <dt>to</dt>
+                    <dt>Contato</dt>
                     <dd>{dispatchPreviewTo}</dd>
-                  </div>
-                  <div>
-                    <dt>Oculto</dt>
-                    <dd>{dispatchHiddenSession ? "Sim" : "Não"}</dd>
                   </div>
                 </dl>
               </section>
