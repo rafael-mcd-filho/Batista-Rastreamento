@@ -25,7 +25,7 @@ import { boletoParameterFromLink } from "../lib/boleto";
 type InvoiceGroup = "overdue" | "open" | "paid" | "other";
 type Filter = "all" | InvoiceGroup;
 type MainTab = "client" | "invoices" | "disparos";
-type DispatchTemplate = "invoice" | "renovacao";
+type DispatchTemplate = "invoice" | "renovacao" | "condicaoEspecial";
 type PageSize = 25 | 50 | 100;
 type SortKey = "cliente" | "vencimento" | "pagamento" | "valor" | "status";
 type SortDirection = "asc" | "desc";
@@ -160,6 +160,11 @@ const dispatchTemplateOptions: Array<{
     key: "renovacao",
     label: "Renovacao",
     title: "Mensagem de renovacao"
+  },
+  {
+    key: "condicaoEspecial",
+    label: "Condição Especial",
+    title: "Mensagem de condição especial"
   }
 ];
 const rangePresetOptions: Array<{ key: RangePreset; label: string }> = [
@@ -404,7 +409,7 @@ function firstContactName(value: string | null) {
 function dispatchMissingFields(invoice: Invoice, template: DispatchTemplate) {
   const missing: string[] = [];
 
-  if (template === "renovacao") {
+  if (template === "renovacao" || template === "condicaoEspecial") {
     if (!firstContactName(invoice.clienteNome)) {
       missing.push("nome");
     }
@@ -2493,6 +2498,48 @@ export default function Home() {
                           😊
                         </p>
                       </>
+                    ) : dispatchTemplate === "condicaoEspecial" ? (
+                      <>
+                        <p>
+                          Olá,{" "}
+                          <strong className="templateVar">
+                            {dispatchPreviewPrimeiroNome}
+                          </strong>
+                          ! Tudo bem? Esperamos que sim! 🧡🖤
+                        </p>
+                        <p>
+                          Verificamos que existe uma pendência financeira vinculada
+                          ao seu cadastro, o que ocasionou a inclusão do seu CPF nos
+                          órgãos de proteção ao crédito.
+                        </p>
+                        <p>
+                          Pensando em facilitar a sua regularização, conseguimos
+                          liberar uma{" "}
+                          <strong>CONDIÇÃO ESPECIAL DE ACORDO</strong>, com valor
+                          reduzido para quitação da dívida junto à empresa.
+                        </p>
+                        <p>
+                          ⏳ <strong>Importante:</strong> Esta proposta é válida
+                          apenas até este <strong>SÁBADO</strong>, podendo não estar
+                          disponível após esse período.
+                        </p>
+                        <p>
+                          💳 Caso prefira, o pagamento também pode ser realizado
+                          presencialmente em nossa loja, com possibilidade de
+                          parcelamento em até 10x no cartão de crédito mediante
+                          taxas da operadora.
+                        </p>
+                        <p>
+                          📍 Após a confirmação do pagamento, iniciaremos
+                          imediatamente os procedimentos para retirada da restrição
+                          junto aos órgãos de proteção ao crédito.
+                        </p>
+                        <p>
+                          Caso tenha interesse em aproveitar esta condição especial,
+                          responda esta mensagem para que possamos seguir com o
+                          atendimento.
+                        </p>
+                      </>
                     ) : (
                       <>
                         <p>
@@ -2536,7 +2583,8 @@ export default function Home() {
               <section className="dispatchParams" aria-label="Parâmetros do disparo">
                 <span>Parâmetros do primeiro envio</span>
                 <dl>
-                  {dispatchTemplate === "renovacao" ? (
+                  {dispatchTemplate === "renovacao" ||
+                  dispatchTemplate === "condicaoEspecial" ? (
                     <div>
                       <dt>Nome do Cliente</dt>
                       <dd>{dispatchPreviewPrimeiroNome}</dd>

@@ -2,8 +2,9 @@ import { asString } from "./rastro";
 
 const DEFAULT_MESSAGE_BASE_URL = "https://api.helena.run/chat/v1";
 const DEFAULT_MESSAGE_FROM = "5583988098480";
-const DEFAULT_INVOICE_TEMPLATE_ID = "9be1f_faturadiadovencimento";
-const DEFAULT_RENEWAL_TEMPLATE_ID = "27cb8_renovacao";
+const INVOICE_TEMPLATE_ID = "9be1f_faturadiadovencimento";
+const RENEWAL_TEMPLATE_ID = "27cb8_renovacao";
+const SPECIAL_CONDITION_TEMPLATE_ID = "0f993_condicaoespecial";
 
 export type HelenaContact = {
   id: string;
@@ -58,17 +59,6 @@ function getHelenaMessageConfig() {
   }
 
   return { token, baseUrl, from };
-}
-
-function getInvoiceTemplateId() {
-  return process.env.HELENA_TEMPLATE_ID?.trim() || DEFAULT_INVOICE_TEMPLATE_ID;
-}
-
-function getRenewalTemplateId() {
-  return (
-    process.env.HELENA_RENOVACAO_TEMPLATE_ID?.trim() ||
-    DEFAULT_RENEWAL_TEMPLATE_ID
-  );
 }
 
 export async function getHelenaContact(contactId: string): Promise<HelenaContact> {
@@ -143,7 +133,7 @@ export async function sendHelenaInvoiceTemplate({
   hiddenSession: boolean;
 }) {
   return sendHelenaTemplateMessage({
-    templateId: getInvoiceTemplateId(),
+    templateId: INVOICE_TEMPLATE_ID,
     parameters: {
       Cliente: cliente,
       atraso,
@@ -164,7 +154,26 @@ export async function sendHelenaRenewalTemplate({
   hiddenSession: boolean;
 }) {
   return sendHelenaTemplateMessage({
-    templateId: getRenewalTemplateId(),
+    templateId: RENEWAL_TEMPLATE_ID,
+    parameters: {
+      "Nome do Cliente": nomeCliente
+    },
+    to,
+    hiddenSession
+  });
+}
+
+export async function sendHelenaSpecialConditionTemplate({
+  nomeCliente,
+  to,
+  hiddenSession
+}: {
+  nomeCliente: string;
+  to: string;
+  hiddenSession: boolean;
+}) {
+  return sendHelenaTemplateMessage({
+    templateId: SPECIAL_CONDITION_TEMPLATE_ID,
     parameters: {
       "Nome do Cliente": nomeCliente
     },

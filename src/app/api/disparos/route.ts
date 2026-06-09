@@ -3,7 +3,8 @@ import { boletoParameterFromLink } from "../../../lib/boleto";
 import {
   HelenaApiError,
   sendHelenaInvoiceTemplate,
-  sendHelenaRenewalTemplate
+  sendHelenaRenewalTemplate,
+  sendHelenaSpecialConditionTemplate
 } from "../../../lib/helena";
 import { asString } from "../../../lib/rastro";
 
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 type DispatchInvoiceInput = Record<string, unknown>;
-type DispatchTemplate = "invoice" | "renovacao";
+type DispatchTemplate = "invoice" | "renovacao" | "condicaoEspecial";
 
 type BuiltDispatchPayload =
   | {
@@ -35,10 +36,22 @@ type BuiltDispatchPayload =
         nomeCliente: string;
         to: string;
       };
+    }
+  | {
+      ok: true;
+      template: "condicaoEspecial";
+      message: {
+        nomeCliente: string;
+        to: string;
+      };
     };
 
 function dispatchTemplateFrom(value: unknown): DispatchTemplate {
-  return value === "renovacao" ? "renovacao" : "invoice";
+  if (value === "renovacao" || value === "condicaoEspecial") {
+    return value;
+  }
+
+  return "invoice";
 }
 
 function firstContactName(value: string | null) {
@@ -92,7 +105,7 @@ function buildDispatchPayload(
   const to = normalizeBrazilPhone(asString(invoice.clienteTelefone));
   const missing: string[] = [];
 
-  if (template === "renovacao") {
+  if (template === "renovacao" || template === "condicaoEspecial") {
     const nomeCliente = firstContactName(asString(invoice.clienteNome));
 
     if (!nomeCliente) {
@@ -219,10 +232,15 @@ export async function POST(request: Request) {
                 ...payload.message,
                 hiddenSession
               })
-            : await sendHelenaInvoiceTemplate({
-                ...payload.message,
-                hiddenSession
-        });
+            : payload.template === "condicaoEspecial"
+              ? await sendHelenaSpecialConditionTemplate({
+                  ...payload.message,
+                  hiddenSession
+                })
+              : await sendHelenaInvoiceTemplate({
+                  ...payload.message,
+                  hiddenSession
+                });
         enviados.push({
           ref,
           cliente: cliente || ref,
